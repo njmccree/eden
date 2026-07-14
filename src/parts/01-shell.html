@@ -245,7 +245,7 @@
     font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
   #solStrip b{color:var(--ink);font-weight:600}
 
-  #ch4{z-index:31;top:auto;bottom:0;left:0;right:0;height:auto;max-height:46vh;
+  #ch4{z-index:31;top:auto;bottom:0;left:0;right:0;height:auto;max-height:52vh;
     justify-content:flex-start;padding:10px 12px calc(12px + env(safe-area-inset-bottom));gap:8px;
     background:rgba(6,9,15,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
     border-top:1px solid var(--line);overflow-y:auto}
@@ -277,20 +277,31 @@
   .crewCard .chips button b{color:var(--go);font-weight:600;margin-left:4px}
   .crewCard .chips button b.neg{color:var(--bad)}
   .crewCard .chips button.sel{border-color:var(--accent);color:var(--ink)}
-  #ch4 .winhead{display:flex;justify-content:space-between;align-items:baseline;width:min(560px,94vw)}
+  #ch4 .winhead{display:flex;justify-content:space-between;align-items:baseline;width:min(560px,94vw);
+    padding-right:84px;flex-wrap:wrap;gap:2px 10px}
   #winLab{font-size:13px;letter-spacing:.3em;text-transform:uppercase}
-  #ch4Strip{font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;text-align:right}
-  #ch4Strip b{color:var(--ink)}
-  #allocRows{display:flex;flex-direction:column;gap:6px;width:min(560px,94vw)}
-  .alloc{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:7px;
-    padding:7px 10px;background:rgba(14,19,28,.9)}
-  .alloc.locked{opacity:.42}
-  .alloc .nm{flex:1;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase}
-  .alloc .hint{font-size:9.5px;color:var(--dim);letter-spacing:.05em;display:block;text-transform:none;margin-top:2px}
-  .alloc button{width:44px;height:44px;border:1px solid var(--line);border-radius:6px;color:var(--dim);font-size:18px}
-  .alloc button:active{border-color:var(--accent);color:var(--ink)}
-  .alloc .hv{width:52px;text-align:center;font-size:14px}
-  #hoursLeft{font-size:11px;letter-spacing:.2em;color:var(--dawn);text-transform:uppercase}
+  #ch4Sol{font-size:10px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;text-align:right}
+  #resRow{display:flex;flex-wrap:wrap;gap:6px;width:min(560px,94vw)}
+  .resTile{flex:1 1 64px;min-width:64px;border:1px solid var(--line);border-radius:7px;
+    padding:6px 8px 7px;background:rgba(14,19,28,.9)}
+  .resTile .rv{display:block;font-size:16px;font-weight:600;color:var(--ink);letter-spacing:.02em;
+    white-space:nowrap}
+  .resTile .rv small{font-size:10px;color:var(--dim);font-weight:400;margin-left:2px}
+  .resTile .rl{display:block;font-size:8.5px;letter-spacing:.13em;color:var(--dim);
+    text-transform:uppercase;margin-top:1px;white-space:nowrap;overflow:hidden}
+  .resTile .rbar{height:4px;border:1px solid var(--line);border-radius:3px;overflow:hidden;
+    position:relative;margin-top:5px}
+  .resTile .rbar i{position:absolute;inset:0;width:0%;background:var(--accent);transition:width .3s}
+  .resTile.low .rbar i{background:var(--bad)}
+  .resTile .rr{display:block;font-size:9px;letter-spacing:.04em;color:var(--dim);margin-top:3px;
+    min-height:11px;white-space:nowrap}
+  .resTile .rr.up{color:var(--go)}
+  .resTile .rr.dn{color:var(--bad)}
+  .resTile.pulse{animation:tilePulse 1.4s ease}
+  @keyframes tilePulse{0%{border-color:var(--go);background:rgba(127,224,143,.16)}
+   100%{border-color:var(--line);background:rgba(14,19,28,.9)}}
+  #ch4 .secLab{width:min(560px,94vw);font-size:9.5px;letter-spacing:.3em;color:#525d6e;
+    text-transform:uppercase;margin-top:2px}
   #projWrap{width:min(560px,94vw);border:1px dashed var(--line);border-radius:7px;padding:9px 12px;
     font-size:11px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
   #projWrap .bar2{margin-top:6px}
@@ -496,7 +507,20 @@
 <div class="screen" id="ch4">
   <button id="panelTog">Map ▾</button>
   <div class="winhead"><div id="winLab" class="mono">WINDOW 1 / 8</div>
-    <div id="ch4Strip" class="mono">—</div></div>
+    <div id="ch4Sol" class="mono">SOL 40</div></div>
+  <div id="resRow" class="mono">
+    <div class="resTile" id="tWater"><span class="rv">—</span><span class="rl">Water kg</span>
+      <div class="rbar"><i></i></div><span class="rr"></span></div>
+    <div class="resTile" id="tProp"><span class="rv">—</span><span class="rl">Prop kg</span>
+      <div class="rbar"><i></i></div><span class="rr"></span></div>
+    <div class="resTile" id="tFood"><span class="rv">—</span><span class="rl">Food %</span>
+      <div class="rbar"><i></i></div><span class="rr"></span></div>
+    <div class="resTile" id="tPwr"><span class="rv">—</span><span class="rl">Power kW</span>
+      <div class="rbar"><i></i></div><span class="rr"></span></div>
+    <div class="resTile" id="tBudget"><span class="rv">—</span><span class="rl">Budget $M</span>
+      <div class="rbar"><i></i></div><span class="rr"></span></div>
+  </div>
+  <div class="secLab">Crew · tap a card to reassign</div>
   <div id="crewRows"></div>
   <div id="projWrap" class="mono">CONSTRUCTION — <span id="projName">no project</span>
     <div class="bar2" id="projBar" style="display:none"><i></i></div>
