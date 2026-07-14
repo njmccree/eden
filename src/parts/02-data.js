@@ -117,5 +117,6 @@ const NPCS={
  cdr:   {name:'COMMANDER',color:'#9fc2e8',init:'CD',blipF:170,pitch:.95,rate:.96},
  press: {name:'PRESS',color:'#8b96a8',init:'PR',blipF:150,pitch:1,  rate:1.05},
  sys:   {name:'CAPCOM',color:'#8b96a8',init:'CC',blipF:140,pitch:.9, rate:1},
- leader:{name:'—',color:'#b7c9ff',init:'★',blipF:120,pitch:.8, rate:.95}
+ leader:{name:'—',color:'#b7c9ff',init:'★',blipF:120,pitch:.8, rate:.95},
+ anchor:{name:'GNN ANCHOR',color:'#c9d4e4',init:'TV',blipF:150,pitch:1.02,rate:1.06}
 };

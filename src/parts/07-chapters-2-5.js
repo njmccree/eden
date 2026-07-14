@@ -909,6 +909,53 @@ function buildComms(flag){
  props.comms.userData.dot.visible=true;
  props.comms.userData.frame.visible=true;
 }
+/* ---- Ch.3 prime-time broadcast (USA choice 1, flags.broadcast): the networks
+   cut into the call live. PiP renders the cabin through a slow push-in; the
+   anchor narrates over the bed and asks two questions with real stakes. ---- */
+function ch3BroadcastBeats(){
+ const Q1="Commander \u2014 the program sold Congress on water in the dark. Straight answer, for the folks at home: is the ice bet real?";
+ const Q2="One more before we give you back to the Moon. The country watched the landing replays. How close did it really get up there?";
+ const A=(t)=>({s:'anchor',t,fx:()=>tvCaption('ANCHOR',t)}); /* narrated + mirrored to the PiP */
+ let t0=0;
+ return [
+  {shot:'twoshot',dur:4800,pre:()=>{t0=0;sfxOnAir();startTvBed();
+    tvShow({mode:'call',net:TV_NET[gameState.site.country]||'GNN 7',pool:[],
+     camFn:(cam,now)=>{ /* slow push-in on the crew and comms wall, light handheld sway */
+      if(!t0)t0=now;const k=Math.min(1,(now-t0)/34000);
+      cam.fov=30-6*k;
+      cam.position.set(Math.sin(now*.0011)*.05,.6-.22*k+Math.sin(now*.0009)*.03,2.6-1.5*k);
+      cam.lookAt(Math.sin(now*.0013)*.12,.32,-1);},
+     sceneOk:()=>hasTHREE&&cabinRoot&&cabinRoot.visible});
+    tvCaption('ANCHOR',"Good evening. We are live inside Eden Base \u2014 one-point-three light-seconds from this studio. Every word you hear already left the Moon.");},
+   cap:'(a tally light goes red \u2014 forty million living rooms are suddenly in the cabin)'},
+  {shot:'wide',dur:7000,pre:()=>tvCaption('ANCHOR',"Three crew. A cabin the size of a school bus. And outside the window, a crater deeper than any hole on Earth \u2014 holding, if the survey is right, enough ice to keep a nation's foothold alive."),
+   cap:'(the engineer slides the coffee tin out of frame with one practiced foot)'},
+  {shot:'windowE',dur:6600,pre:()=>tvCaption('ANCHOR',"That is the Atlantic seaboard at dawn, from their rim camera. The crew sees this every morning. They tell us you never get used to it."),
+   cap:'(the rim camera holds on Earth \u2014 the studio, for once, says nothing)'},
+  {shot:'cdr',pre:()=>sfxRadio(true),
+   dialog:()=>[{...A(Q1),choices:[
+    {label:"\u201cWe believe so. The instruments say yes \u2014 the drill will say for certain, and you'll watch it live.\u201d",tags:'+1 Morale \u00b7 the crew hears you level',
+     fx:()=>{setStat('morale',1);gameState.log.push('Gave the country an honest maybe, on air.');},
+     next:[A("An honest maybe, from the Moon. Refreshing \u2014 viewers, you cannot imagine how refreshing.")]},
+    {label:"\u201cThere's an ocean under that floor, and America just parked on top of it.\u201d",tags:'+1 Support \u00b7 quite a promise',
+     fx:()=>{setStat('publicSupport',1);gameState.log.push('Sold the ocean under the crater, on air.');},
+     next:[A("\u2014and that, viewers, is the soundbite of the year. You heard it here first.")]}
+   ]}]},
+  {shot:'eng',pre:()=>sfxRadio(true),
+   dialog:()=>[{...A(Q2),choices:[
+    {label:"\u201cClose enough that we rehearse every failure twice. Thin margins are the job \u2014 pretending otherwise is the risk.\u201d",tags:'the engineer approves',
+     fx:()=>{bumpCrew('engineer',1);gameState.log.push('Told the truth about the margins, on air.');},
+     next:[A("Candor, from a quarter million miles out. The control room behind me just applauded. That does not happen.")]},
+    {label:"\u201cThe vehicle performed within parameters. Next question.\u201d",tags:'no change \u00b7 the anchor smells a story',
+     fx:()=>{gameState.log.push('Stonewalled the landing question, on air.');},
+     next:[A("\u2018Within parameters.\u2019 Folks, that is astronaut for \u2018you should see the other guy.\u2019 We will be pulling those replays.")]}
+   ]}]},
+  {shot:'twoshot',dur:5600,pre:()=>tvCaption('ANCHOR',"From Shackleton crater \u2014 three Americans, farther from home than anyone has ever slept. Good night."),
+   cap:'(the anchor holds the silence one beat longer than television allows)'},
+  {shot:'wide',dur:2800,pre:()=>{stopTvBed();tvHide();sfxRadio(true);},
+   cap:'(tally light off \u2014 the cabin exhales all at once)'}
+ ];
+}
 /* ---- five conversations, one spine: congrats -> the ask -> a choice -> sign-off ---- */
 function ch3Beats(country){
  const CH=(label,tags,fx,reply,req)=>({label,tags,req,showLocked:!!req,
@@ -919,16 +966,16 @@ function ch3Beats(country){
  const close=[
   {shot:'twoshot',dur:2600,cap:'(link drop \u2014 the cabin hum sounds louder than it did)'}
  ];
- if(country==='USA')return [...open,
-  {shot:'screen',who:'leader',lag:true,t:"Eden, this is the White House. Seventy years of countdowns, and you're the first crew I've called past the Moon's own horizon. The whole country is watching one channel tonight. That never happens."},
-  {shot:'cdr',who:'cdr',t:"Thank you. The commute is long but the view of home is worth it."},
-  {shot:'windowE',who:'sci',t:"We can see the whole Atlantic seaboard at dawn from the rim camera. Florida photographs beautifully from up here."},
-  {shot:'screen',who:'leader',lag:true,t:"Here's my ask. Congress votes on the Lunar Authority budget in three weeks. Give me a moment this country can rally behind."},
-  {dialog:()=>[{s:'leader',t:"What do you have for me, Eden?",choices:[
+ if(country==='USA'){
+  /* the ask is a named beat so choice 1 can splice the live broadcast in right
+     after the leader's reply; the other choices leave the spine untouched. */
+  let spine;
+  const ask={dialog:()=>[{s:'leader',t:"What do you have for me, Eden?",choices:[
    CH("\u201cPrime-time broadcast from the rim \u2014 full tour, live questions.\u201d",'+2 Support \u00b7 \u22121 Morale (crew prep)',
     ()=>{setStat('publicSupport',2);setStat('morale',-1);gameState.flags.broadcast=true;
-     gameState.log.push('Promised a prime-time broadcast from the rim.');},
-    "That'll do it. I'll bring the networks. You bring the Moon."),
+     gameState.log.push('Promised a prime-time broadcast from the rim.');
+     spine.splice(spine.indexOf(ask)+1,0,...ch3BroadcastBeats());},
+    "That'll do it. I'll bring the networks. You bring the Moon. Stand by \u2014 they're already patched into the uplink."),
    CH("\u201cRespectfully \u2014 the moment is the water. First ice core, televised the day we pull it.\u201d",'+1 Support \u00b7 the core becomes the show',
     ()=>{setStat('publicSupport',1);gameState.flags.icePremiere=true;
      gameState.log.push('Staked the publicity moment on the first ice core.');},
@@ -937,10 +984,18 @@ function ch3Beats(country){
     ()=>{setStat('budget',200);setStat('publicSupport',-1);gameState.flags.mediaDeal=true;
      gameState.log.push('Auctioned exclusive documentary rights.');},
     "...The lawyers will hate how much I like this.",'admin')
-  ]}]},
-  {shot:'eng',who:'eng',t:"For the record: nobody films my coffee ration."},
-  {shot:'screen',who:'leader',lag:true,t:"Bring them home proud, Eden. And Commander \u2014 the harmonica made the evening news. Washington out."},
-  ...close];
+  ]}]};
+  spine=[...open,
+   {shot:'screen',who:'leader',lag:true,t:"Eden, this is the White House. Seventy years of countdowns, and you're the first crew I've called past the Moon's own horizon. The whole country is watching one channel tonight. That never happens."},
+   {shot:'cdr',who:'cdr',t:"Thank you. The commute is long but the view of home is worth it."},
+   {shot:'windowE',who:'sci',t:"We can see the whole Atlantic seaboard at dawn from the rim camera. Florida photographs beautifully from up here."},
+   {shot:'screen',who:'leader',lag:true,t:"Here's my ask. Congress votes on the Lunar Authority budget in three weeks. Give me a moment this country can rally behind."},
+   ask,
+   {shot:'eng',who:'eng',t:"For the record: nobody films my coffee ration."},
+   {shot:'screen',who:'leader',lag:true,t:"Bring them home proud, Eden. And Commander \u2014 the harmonica made the evening news. Washington out."},
+   ...close];
+  return spine;
+ }
  if(country==='French Guiana')return [...open,
   {shot:'screen',who:'leader',lag:true,t:"Eden, Paris. From Kourou you borrowed our equator; since last night you carry a piece of Europe on the Moon. F\u00e9licitations \u2014 all of it."},
   {shot:'cdr',who:'cdr',t:"Merci. The running start helped more than the textbooks admit."},
@@ -1054,7 +1109,9 @@ function enterCh3Call(){
  slug.textContent='Shackleton Base \u00b7 Sol 2 \u00b7 Uplink to '+L.cap;
  slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4800);
  applyShot('twoshot');
- playCut(ch3Beats(gameState.site.country),()=>go('GAME3'));
+ playCut(ch3Beats(gameState.site.country),()=>{
+  if(gameState.flags.broadcast){stopTvBed();tvHide();} /* skip mid-broadcast leaves the feed up */
+  go('GAME3');});
 }
 $('chap3Btn').addEventListener('click',()=>{
  sfxClick();

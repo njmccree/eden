@@ -355,6 +355,44 @@ function sfxRadio(short){
  g.gain.linearRampToValueAtTime(0,t+(short?.55:1.1));
  n.start(t);n.stop(t+1.2);
 }
+/* --- prime-time broadcast bed (Ch.3 live TV): low bandpassed air with a slow
+   uplink wobble, held under the whole segment. start/stop from the beats. --- */
+const TVBED={src:null,g:null,lfo:null,lg:null};
+function startTvBed(){
+ const ctx=AM.ctx;if(!ctx||TVBED.src)return;const t=ctx.currentTime;
+ const n=ctx.createBufferSource();n.buffer=AM.brown;n.loop=true;
+ const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=900;bp.Q.value=1;
+ const g=ctx.createGain();
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.05,t+1.4);
+ const lfo=ctx.createOscillator();lfo.frequency.value=.16; /* slow gain wobble */
+ const lg=ctx.createGain();lg.gain.setValueAtTime(0,t);
+ lg.gain.linearRampToValueAtTime(.016,t+2);
+ lfo.connect(lg);lg.connect(g.gain);
+ n.connect(bp);bp.connect(g);g.connect(AM.sfxG);
+ n.start(t);lfo.start(t);
+ TVBED.src=n;TVBED.g=g;TVBED.lfo=lfo;TVBED.lg=lg;
+}
+function stopTvBed(){
+ const ctx=AM.ctx;if(!ctx||!TVBED.src)return;const t=ctx.currentTime;
+ const gv=TVBED.g.gain.value,lv=TVBED.lg.gain.value; /* capture before cancel: early skip fades, no snap */
+ TVBED.g.gain.cancelScheduledValues(t);
+ TVBED.g.gain.setValueAtTime(gv,t);
+ TVBED.g.gain.linearRampToValueAtTime(0,t+.8);
+ TVBED.lg.gain.cancelScheduledValues(t);
+ TVBED.lg.gain.setValueAtTime(lv,t);
+ TVBED.lg.gain.linearRampToValueAtTime(0,t+.6);
+ TVBED.src.stop(t+.9);TVBED.lfo.stop(t+.9);
+ TVBED.src=null;TVBED.g=null;TVBED.lfo=null;TVBED.lg=null;
+}
+function sfxOnAir(){ /* two rising sine notes: the tally-light cue */
+ if(!AM.ctx)return;const ctx=AM.ctx;
+ [659.25,880].forEach((f,i)=>{
+  const o=ctx.createOscillator();o.type='sine';o.frequency.value=f;
+  const g=ctx.createGain();o.connect(g);g.connect(AM.sfxG);
+  const t=ctx.currentTime+i*.22;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+.012);
+  g.gain.exponentialRampToValueAtTime(.001,t+.7);o.start(t);o.stop(t+.75);});
+}
 function sfxVelcro(){
  const ctx=AM.ctx;if(!ctx)return;const t=ctx.currentTime;
  const n=ctx.createBufferSource();n.buffer=AM.brown;n.loop=true;
