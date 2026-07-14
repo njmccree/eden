@@ -1429,22 +1429,23 @@ let crewFigs={},POI={};
 function makeSurfaceCrew(hex){
  const g=new THREE.Group();
  const suit=new THREE.MeshPhongMaterial({color:0xe8e9ec,flatShading:true});
- const body=new THREE.Mesh(new THREE.CylinderGeometry(.5,.6,1.3,8),suit);
- body.position.y=1.25;g.add(body);
- const helm=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),
+ const body=new THREE.Mesh(new THREE.CylinderGeometry(.36,.44,1.15,8),suit);
+ body.position.y=1.32;g.add(body);
+ const helm=new THREE.Mesh(new THREE.SphereGeometry(.3,10,8),
   new THREE.MeshPhongMaterial({color:0xd8e4ee,shininess:70,specular:0xffffff}));
- helm.position.y=2.25;g.add(helm);
- const visor=new THREE.Mesh(new THREE.SphereGeometry(.3,8,6),
+ helm.position.y=2.15;g.add(helm);
+ const visor=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),
   new THREE.MeshBasicMaterial({color:hex}));
- visor.position.set(0,2.25,.2);g.add(visor);
- const pack=new THREE.Mesh(new THREE.BoxGeometry(.6,.9,.35),suit);
- pack.position.set(0,1.5,-.5);g.add(pack);
+ visor.position.set(0,2.15,.13);g.add(visor);
+ const pack=new THREE.Mesh(new THREE.BoxGeometry(.46,.7,.28),suit);
+ pack.position.set(0,1.55,-.42);g.add(pack);
  const legs=[];
- [[-.22],[.22]].forEach(([x])=>{
-  const l=new THREE.Mesh(new THREE.BoxGeometry(.24,.85,.3),suit);
+ [[-.17],[.17]].forEach(([x])=>{
+  const l=new THREE.Mesh(new THREE.BoxGeometry(.17,.85,.22),suit);
   l.position.set(x,.45,0);g.add(l);legs.push(l);});
- const arm=new THREE.Mesh(new THREE.CylinderGeometry(.11,.1,.8,6),suit);
- arm.position.set(.62,1.5,.1);arm.rotation.z=-.5;g.add(arm);
+ const arm=new THREE.Mesh(new THREE.CylinderGeometry(.085,.075,.75,6),suit);
+ arm.position.set(.46,1.45,.08);arm.rotation.z=-.5;g.add(arm);
+ const armL=arm.clone();armL.position.x=-.46;armL.rotation.z=.5;g.add(armL);
  return {g,legs,arm,phase:Math.random()*7};
 }
 function buildColony(){

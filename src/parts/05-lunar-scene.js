@@ -192,38 +192,85 @@ function buildHorizon(R,base,lift,tone){
   flatShading:true,shininess:2,side:THREE.DoubleSide}));
 }
 
-function makeCrew(accent){
+function makeCrew(accent,skinHex,hairHex){
+ /* adult proportions on the same rig anchors: headPivot y=.98 (cutscene
+    cameras aim here), jaw rest y=-.12, armR pivot + hand offset preserved
+    so the gesture/raise poses and prop attach points still land */
  const g=new THREE.Group();
  const suit=new THREE.MeshPhongMaterial({color:0xe4e6ea,flatShading:true,shininess:12});
- const torso=new THREE.Mesh(new THREE.CylinderGeometry(.26,.3,.72,10),suit);
- torso.position.y=.36;g.add(torso);
- const patch=new THREE.Mesh(new THREE.BoxGeometry(.12,.09,.03),
+ const suitD=new THREE.MeshPhongMaterial({color:0xc4c8cf,flatShading:true,shininess:8});
+ const skin=new THREE.MeshPhongMaterial({color:skinHex||0xd9c4ac,shininess:5});
+ const hairM=new THREE.MeshPhongMaterial({color:hairHex||0x2e2a26,flatShading:true,shininess:4});
+ const seg=(mat,r1,r2,len)=>new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,len,8),mat);
+ const hips=new THREE.Mesh(new THREE.CylinderGeometry(.17,.15,.18,10),suitD);
+ hips.position.y=.12;g.add(hips);
+ const torso=new THREE.Mesh(new THREE.CylinderGeometry(.22,.17,.52,10),suit);
+ torso.position.y=.46;g.add(torso);
+ [[-.24],[.24]].forEach(([x])=>{
+  const sh=new THREE.Mesh(new THREE.SphereGeometry(.08,8,7),suit);
+  sh.position.set(x,.7,.01);g.add(sh);});
+ const patch=new THREE.Mesh(new THREE.BoxGeometry(.09,.07,.02),
   new THREE.MeshBasicMaterial({color:accent}));
- patch.position.set(.1,.52,.26);g.add(patch);
- const collar=new THREE.Mesh(new THREE.TorusGeometry(.17,.045,8,14),
+ patch.position.set(.11,.6,.2);g.add(patch);
+ const collar=new THREE.Mesh(new THREE.TorusGeometry(.1,.032,8,14),
   new THREE.MeshPhongMaterial({color:0x9aa0a8}));
- collar.rotation.x=Math.PI/2;collar.position.y=.76;g.add(collar);
+ collar.rotation.x=Math.PI/2;collar.position.y=.79;g.add(collar);
+ const neck=seg(skin,.048,.052,.1);neck.position.y=.85;g.add(neck);
+ /* head */
  const headPivot=new THREE.Group();headPivot.position.y=.98;g.add(headPivot);
- const head=new THREE.Mesh(new THREE.SphereGeometry(.2,12,10),
-  new THREE.MeshPhongMaterial({color:0xd9c4ac,shininess:6}));
- headPivot.add(head);
+ const skull=new THREE.Mesh(new THREE.SphereGeometry(.105,14,12),skin);
+ skull.scale.set(.92,1.12,.98);headPivot.add(skull);
+ const hairC=new THREE.Mesh(new THREE.SphereGeometry(.113,12,9,0,Math.PI*2,0,2.05),hairM);
+ hairC.rotation.x=-.78;hairC.position.set(0,.02,-.012);headPivot.add(hairC);
  const eyeMat=new THREE.MeshBasicMaterial({color:0x22262d});
- const eyeL=new THREE.Mesh(new THREE.SphereGeometry(.026,6,6),eyeMat);
- eyeL.position.set(-.07,.03,.18);headPivot.add(eyeL);
- const eyeR=eyeL.clone();eyeR.position.x=.07;headPivot.add(eyeR);
- const jaw=new THREE.Mesh(new THREE.BoxGeometry(.11,.05,.08),
-  new THREE.MeshPhongMaterial({color:0xcbb49b}));
- jaw.position.set(0,-.12,.13);headPivot.add(jaw);
- const armL=new THREE.Mesh(new THREE.CylinderGeometry(.06,.055,.55,8),suit);
- armL.position.set(-.3,.42,.1);armL.rotation.z=.5;armL.rotation.x=-.4;g.add(armL);
+ const eyeL=new THREE.Mesh(new THREE.SphereGeometry(.013,6,6),eyeMat);
+ eyeL.position.set(-.042,.012,.093);headPivot.add(eyeL);
+ const eyeR=eyeL.clone();eyeR.position.x=.042;headPivot.add(eyeR);
+ [[-.042,.05],[.042,-.05]].forEach(([x,rz])=>{
+  const brow=new THREE.Mesh(new THREE.BoxGeometry(.038,.008,.012),hairM);
+  brow.position.set(x,.048,.096);brow.rotation.z=rz;headPivot.add(brow);});
+ const nose=new THREE.Mesh(new THREE.ConeGeometry(.013,.032,5),skin);
+ nose.rotation.x=Math.PI/2;nose.position.set(0,-.012,.108);headPivot.add(nose);
+ [[-.098],[.098]].forEach(([x])=>{
+  const ear=new THREE.Mesh(new THREE.SphereGeometry(.02,6,6),skin);
+  ear.scale.set(.45,1,.7);ear.position.set(x,-.005,.005);headPivot.add(ear);});
+ const mouthBack=new THREE.Mesh(new THREE.BoxGeometry(.044,.02,.02),
+  new THREE.MeshBasicMaterial({color:0x33201a}));
+ mouthBack.position.set(0,-.09,.048);headPivot.add(mouthBack);
+ const jaw=new THREE.Mesh(new THREE.SphereGeometry(.082,10,8),skin);
+ jaw.scale.set(.9,.68,.92);jaw.position.set(0,-.115,.022);headPivot.add(jaw);
+ const lip=new THREE.Mesh(new THREE.BoxGeometry(.042,.006,.01),
+  new THREE.MeshPhongMaterial({color:0xa06a58}));
+ lip.position.set(0,.036,.062);jaw.add(lip);
+ /* arms: left bent across, right on the gesture rig */
+ const armL=new THREE.Group();armL.position.set(-.26,.68,.03);g.add(armL);
+ const upL=seg(suit,.05,.045,.28);upL.position.set(0,-.13,.02);upL.rotation.x=-.25;armL.add(upL);
+ const elL=new THREE.Mesh(new THREE.SphereGeometry(.05,7,6),suitD);
+ elL.position.set(0,-.26,.06);armL.add(elL);
+ const foL=seg(suit,.042,.038,.26);
+ foL.position.set(.07,-.3,.17);foL.rotation.x=-1.25;foL.rotation.z=-.5;armL.add(foL);
+ const glL=new THREE.Mesh(new THREE.SphereGeometry(.05,7,6),suitD);
+ glL.position.set(.15,-.32,.27);armL.add(glL);
+ armL.rotation.z=.18;
  const armR=new THREE.Group();armR.position.set(.3,.6,.05);g.add(armR);
- const armRm=new THREE.Mesh(new THREE.CylinderGeometry(.06,.055,.55,8),suit);
- armRm.position.y=-.26;armR.add(armRm);
+ const upR=seg(suit,.05,.045,.28);upR.position.set(0,-.13,.015);upR.rotation.x=.1;armR.add(upR);
+ const elR=new THREE.Mesh(new THREE.SphereGeometry(.05,7,6),suitD);
+ elR.position.set(0,-.27,.03);armR.add(elR);
+ const foR=seg(suit,.042,.038,.26);foR.position.set(0,-.4,.015);foR.rotation.x=-.12;armR.add(foR);
+ const glR=new THREE.Mesh(new THREE.SphereGeometry(.052,7,6),suitD);
+ glR.position.set(0,-.53,0);armR.add(glR);
  const hand=new THREE.Group();hand.position.set(0,-.55,0);armR.add(hand);
  armR.rotation.z=-.55;armR.rotation.x=-.35;
- [[-.12],[.12]].forEach(([x])=>{
-  const leg=new THREE.Mesh(new THREE.CylinderGeometry(.075,.07,.6,8),suit);
-  leg.position.set(x,-.18,.16);leg.rotation.x=-.9;g.add(leg);});
+ /* seated float: thigh + shin with a knee */
+ [[-.11],[.11]].forEach(([x])=>{
+  const thigh=new THREE.Group();thigh.position.set(x,.06,.06);thigh.rotation.x=-1.25;g.add(thigh);
+  const th=seg(suit,.062,.055,.3);th.position.y=-.15;thigh.add(th);
+  const knee=new THREE.Mesh(new THREE.SphereGeometry(.058,7,6),suitD);
+  knee.position.y=-.3;thigh.add(knee);
+  const shin=new THREE.Group();shin.position.y=-.31;shin.rotation.x=1.05;thigh.add(shin);
+  const sh=seg(suit,.05,.045,.28);sh.position.y=-.14;shin.add(sh);
+  const boot=new THREE.Mesh(new THREE.BoxGeometry(.085,.06,.15),suitD);
+  boot.position.set(0,-.3,.03);shin.add(boot);});
  return {g,headPivot,jaw,eyeL,eyeR,armR,hand,
   phase:Math.random()*7,speak:0,gestureT:0,raise:false,blinkT:2+Math.random()*3,
   armBase:{z:-.55,x:-.35},lookMix:new THREE.Vector3(0,.6,2)};
@@ -313,9 +360,9 @@ function buildCabin(){
   sizeAttenuation:false,transparent:true,opacity:.28}));
  motes.userData={mp,mv};cabinRoot.add(motes);
  /* crew */
- crew.cdr=makeCrew(0x9fc2e8);crew.cdr.g.position.set(-1.05,-.35,.55);crew.cdr.g.rotation.y=1.05;
- crew.eng=makeCrew(0xff9d5c);crew.eng.g.position.set(1.05,-.42,.35);crew.eng.g.rotation.y=-1.1;
- crew.sci=makeCrew(0xffc06a);crew.sci.g.position.set(-.15,.28,-.85);
+ crew.cdr=makeCrew(0x9fc2e8,0xc68863,0x3a3128);crew.cdr.g.position.set(-1.05,-.35,.55);crew.cdr.g.rotation.y=1.05;
+ crew.eng=makeCrew(0xff9d5c,0x8d5a3b,0x1a1614);crew.eng.g.position.set(1.05,-.42,.35);crew.eng.g.rotation.y=-1.1;
+ crew.sci=makeCrew(0xffc06a,0xe8bd92,0x6e4526);crew.sci.g.position.set(-.15,.28,-.85);
  crew.sci.g.rotation.y=.15;crew.sci.g.rotation.z=.16;
  Object.values(crew).forEach(c=>cabinRoot.add(c.g));
  /* props */
