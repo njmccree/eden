@@ -1,0 +1,170 @@
+// Headless visual QA: boot the built game in Chromium, walk the archive into
+// every chapter, screenshot each scene, and fail on console errors, page
+// errors, or a blank canvas. Shots land in test/visual/out/ for human review.
+// Requires playwright (resolved via NODE_PATH — see run.sh). Network-free:
+// the cdnjs three.js request is served from vendor/three-r128.min.js.
+import {createRequire} from 'node:module';
+import {readFileSync, mkdirSync, writeFileSync} from 'node:fs';
+import {createServer} from 'node:http';
+import {dirname, join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+const require = createRequire(import.meta.url);
+const {chromium} = require('playwright');
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '..', '..');
+const OUT = join(HERE, 'out');
+const HTML = readFileSync(join(ROOT, 'dist', 'eden.html'), 'utf8');
+const THREE_SRC = readFileSync(join(HERE, 'vendor', 'three-r128.min.js'), 'utf8');
+const EXPECT_BUILD = (HTML.match(/EDEN_BUILD\s*=\s*'([^']+)'/) || [])[1];
+if (!EXPECT_BUILD) { console.error('FAIL could not read EDEN_BUILD from dist/eden.html'); process.exit(1); }
+
+// Archive rows (order matches ARCH_ROWS in 07-chapters-2-5.js): forged history
+// drops us at each chapter's entry scene. settle = ms for cutscene/camera to
+// establish before the shot; ready = optional DOM state to wait for first.
+const CHAPTERS = [
+  {row: 0, name: 'ch1-site-select', settle: 4000},
+  {row: 1, name: 'interlude-coast', settle: 5000},
+  {row: 2, name: 'ch2-arrival',     settle: 5000},
+  {row: 3, name: 'ch3-call',        settle: 5000},
+  {row: 4, name: 'ch4-colony',      settle: 4000, ready: '#dialog', dialogTo: '#ch4'},
+];
+
+const errors = [];
+let shotCount = 0;
+
+function serve() {
+  return new Promise(resolve => {
+    const srv = createServer((req, res) => {
+      res.writeHead(200, {'content-type': 'text/html; charset=utf-8'});
+      res.end(HTML);
+    });
+    srv.listen(0, '127.0.0.1', () => resolve(srv));
+  });
+}
+
+function hookPage(page, label) {
+  page.on('console', msg => {
+    if (msg.type() === 'error') errors.push(`[${label}] console.error: ${msg.text()}`);
+  });
+  page.on('pageerror', err => errors.push(`[${label}] pageerror: ${err.message}`));
+  page.on('requestfailed', req => {
+    // Only external requests matter; everything should be local or routed.
+    errors.push(`[${label}] requestfailed: ${req.url()} (${req.failure()?.errorText})`);
+  });
+}
+
+// Decode a PNG screenshot inside the page (browser as image decoder) and
+// return luminance stats — catches an all-black or all-flat canvas.
+async function pixelStats(page, png) {
+  return page.evaluate(async b64 => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let sum = 0, sum2 = 0, n = d.length / 4;
+    for (let i = 0; i < d.length; i += 4) {
+      const y = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      sum += y; sum2 += y * y;
+    }
+    const mean = sum / n;
+    return {mean, std: Math.sqrt(Math.max(0, sum2 / n - mean * mean))};
+  }, png.toString('base64'));
+}
+
+async function shot(page, name, {minStd = 6} = {}) {
+  const png = await page.screenshot();
+  writeFileSync(join(OUT, name + '.png'), png);
+  shotCount++;
+  const {mean, std} = await pixelStats(page, png);
+  const flat = std < minStd;
+  console.log(`${flat ? 'FAIL' : 'ok  '} shot ${name} (luma mean ${mean.toFixed(1)}, std ${std.toFixed(1)})`);
+  if (flat) errors.push(`shot ${name}: image is flat/blank (luma std ${std.toFixed(1)} < ${minStd})`);
+}
+
+async function bootToMenu(page, base, label) {
+  hookPage(page, label);
+  await page.route('**/three.min.js', r =>
+    r.fulfill({contentType: 'application/javascript', body: THREE_SRC}));
+  await page.goto(base, {waitUntil: 'load'});
+  await page.waitForSelector('#boot.ready', {timeout: 30000});
+  await page.click('#boot');
+  await page.waitForSelector('#menu:not(.gone)', {timeout: 10000});
+  await page.waitForTimeout(800); // menu fade-in
+}
+
+const srv = await serve();
+const base = `http://127.0.0.1:${srv.address().port}/`;
+mkdirSync(OUT, {recursive: true});
+
+const browser = await chromium.launch({
+  args: ['--autoplay-policy=no-user-gesture-required'],
+});
+
+try {
+  // Pass 1: boot screen, version tag, title menu, archive list.
+  {
+    const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+    hookPage(page, 'boot');
+    await page.route('**/three.min.js', r =>
+      r.fulfill({contentType: 'application/javascript', body: THREE_SRC}));
+    await page.goto(base, {waitUntil: 'load'});
+    await page.waitForSelector('#boot.ready', {timeout: 30000});
+    await shot(page, '01-boot-ready', {minStd: 2}); // boot screen is intentionally near-empty
+    await page.click('#boot');
+    await page.waitForSelector('#menu:not(.gone)', {timeout: 10000});
+    await page.waitForTimeout(800);
+    const vtag = (await page.textContent('#vTag')).trim();
+    const vok = vtag === `SURVEY BUILD ${EXPECT_BUILD}`;
+    console.log(`${vok ? 'ok  ' : 'FAIL'} version tag "${vtag}" (dist has ${EXPECT_BUILD})`);
+    if (!vok) errors.push(`version tag mismatch: "${vtag}" vs EDEN_BUILD ${EXPECT_BUILD}`);
+    await shot(page, '02-title-menu');
+    await page.click('#archBtn');
+    await page.waitForSelector('#archive', {state: 'visible'});
+    const rows = await page.locator('.archRow').count();
+    console.log(`${rows === 5 ? 'ok  ' : 'FAIL'} archive rows: ${rows}`);
+    if (rows !== 5) errors.push(`expected 5 archive rows, got ${rows}`);
+    await shot(page, '03-crew-archive');
+    await page.close();
+  }
+
+  // Pass 2: fresh page per chapter so forged state never bleeds between shots.
+  for (const ch of CHAPTERS) {
+    const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+    await bootToMenu(page, base, ch.name);
+    await page.click('#archBtn');
+    await page.waitForSelector('#archive', {state: 'visible'});
+    await page.locator('.archRow').nth(ch.row).click();
+    if (ch.ready) await page.waitForSelector(ch.ready, {state: 'visible', timeout: 15000});
+    await page.waitForTimeout(ch.settle);
+    await shot(page, `${String(ch.row + 4).padStart(2, '0')}-${ch.name}`);
+    if (ch.dialogTo) {
+      // Click through the entry dialog (each line: 1st click finishes typing,
+      // 2nd advances) until the chapter panel appears, then shoot that too.
+      for (let i = 0; i < 12 && !(await page.locator(ch.dialogTo).isVisible()); i++) {
+        await page.click('#dialog');
+        await page.waitForTimeout(400);
+      }
+      await page.waitForSelector(ch.dialogTo, {state: 'visible', timeout: 5000});
+      await page.waitForTimeout(1500);
+      await shot(page, `${String(ch.row + 4).padStart(2, '0')}-${ch.name}-panel`);
+    }
+    await page.close();
+  }
+} finally {
+  await browser.close();
+  srv.close();
+}
+
+console.log(`\n${shotCount} screenshots -> ${OUT}`);
+if (errors.length) {
+  console.error(`\nFAIL visual QA: ${errors.length} problem(s)`);
+  for (const e of errors) console.error('  - ' + e);
+  process.exit(1);
+}
+console.log('-- visual: all passed');

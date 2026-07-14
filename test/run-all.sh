@@ -7,4 +7,6 @@ for t in test/parse-check.mjs test/sim-ch3-traverse.mjs test/sim-ch4-balance.mjs
   echo; echo "== $t"
   node "$t"
 done
+echo; echo "== test/visual (headless screenshots; skips if playwright absent)"
+test/visual/run.sh
 echo; echo "ALL CHECKS PASSED"

@@ -16,6 +16,13 @@ chapters + interlude + chapter select. Next planned: **Chapter Five — The Long
   three separate design failures (an unwinnable water economy, morale silently
   capping food, fatigue equilibrium delaying the greenhouse past year-end) were
   caught by these sims before ever reaching a device.
+- The last run-all stage is `test/visual/run.sh`: playwright drives the built game
+  headless (boot tap → title → archive → every chapter entry), saves screenshots to
+  `test/visual/out/`, and fails on console/page errors or a blank canvas. It serves
+  the vendored `test/visual/vendor/three-r128.min.js` in place of the cdnjs fetch,
+  so it runs network-free; it auto-skips when playwright isn't installed. **Look at
+  the shots** after visual changes — the assertions only catch blank/errored scenes,
+  not ugly ones.
 - Pure-block markers `/* @c4-start */ … @c4-end`, `@c4rt-*`, `@arch-*` fence
   DOM-free logic (colony economics, astronomy/crew accrual, archive history roller).
   Tests extract code via these markers — keep them intact and keep those blocks pure
@@ -76,5 +83,6 @@ a one-beat roster-brief dialog.
 ## Suggested setup in Claude Code
 
 - `python3 -m http.server -d dist 8080` and test from a phone on LAN.
-- Add a Playwright MCP server for screenshot-driven visual QA — every prior visual
-  bug (sky-dome exit, HUD overlap, plume parenting) was human-spotted; automate that.
+- Screenshot QA lives in `test/visual/` (runs as part of run-all). For ad-hoc visual
+  debugging beyond the fixed shot list, drive `dist/eden.html` with playwright the
+  same way `test/visual/shots.mjs` does (route `**/three.min.js` to the vendored copy).

@@ -7,14 +7,19 @@ accurate polar sky. Built entirely with three.js r128 + Web Audio in one HTML fi
 ## Quick start
 
     ./build.sh            # -> dist/eden.html (open it, or serve dist/ for phone testing)
-    test/run-all.sh       # build + syntax/id audit + three balance simulations
+    test/run-all.sh       # build + syntax/id audit + balance sims + headless screenshots
     ./build.sh --bump     # bump SURVEY BUILD patch version, then build
+
+The screenshot stage needs playwright + its Chromium (`npm i -g playwright &&
+npx playwright install chromium`); it auto-skips when they're absent. Shots land
+in `test/visual/out/` for eyeballing.
 
 ## Layout
 
     src/parts/01…07   ordered source (concatenated in filename order)
     src/tail.html     closing tags
     test/             structural checks + headless balance sims (node, no deps)
+    test/visual/      playwright screenshot QA (vendored three.js; network-free)
     dist/             build output (gitignored)
     CLAUDE.md         project brief for Claude Code — constraints, conventions, tunables
 
