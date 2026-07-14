@@ -423,7 +423,7 @@ const POLL_LINES={
  PAYLOAD:['sci',"Payload is GO GO GO — sorry. Payload is go."]};
 /* ---------- launch broadcast: PiP live feed + reporters in the gaps ---------- */
 const TV_NET={'USA':'GNN 7','French Guiana':'ORBITE 24','Kazakhstan':'KTK COSMOS','Japan':'NHU SORA','China':'CGX 9'};
-const tv={on:false,pool:[],poolIdx:0,capT:0,ascIdx:0,hideT:null};
+const tv={on:false,mode:'launch',pool:[],poolIdx:0,capT:0,ascIdx:0,hideT:null,camFn:null,sceneOk:null};
 const TV_ASCENT=[
  [16.9,'ANCHOR',"Clean and loud — Eden One is right down the middle of the corridor."],
  [30.8,'PAD',"The sound just got here. A crackle you feel in your ribs — downrange and climbing."],
@@ -431,9 +431,15 @@ const TV_ASCENT=[
  [50.5,'PAD',"There it is — the booster tumbling back bright against the sky, and the second stage burning steady."],
  [61.6,'ANCHOR',"Next stop: trans-lunar injection. From here, the Moon does the catching."]
 ];
-function tvShow(){
- tv.on=true;tv.poolIdx=0;tv.capT=1.2;tv.ascIdx=0;
- tv.pool=[
+function tvShow(opts){
+ /* generic live-broadcast PiP: opts={mode,pool,net,camFn(tvCam,now),sceneOk()}.
+    No opts = the original launch broadcast. */
+ opts=opts||{};
+ tv.on=true;tv.poolIdx=0;tv.capT=opts.capT!=null?opts.capT:1.2;tv.ascIdx=0;
+ tv.mode=opts.mode||'launch';
+ tv.camFn=opts.camFn||null;
+ tv.sceneOk=opts.sceneOk||null;
+ tv.pool=opts.pool||[
   ['ANCHOR',"Live from "+siteChosen.name+": the pad is clear, the range is green, and half the planet has the same channel on."],
   ['PAD',"You can feel it out here — nobody is checking the weather twice. This bird wants to fly."],
   ['ANCHOR',"Three polls stand between Eden One and the Moon. Flight runs the board when the architect gives the word."],
@@ -441,7 +447,7 @@ function tvShow(){
   ['ANCHOR',"One ship, one program, and a ledger that only balances off-world. No pressure on the crew at all."],
   ['PAD',"The crowd here is ten deep. Someone brought a harmonica."]
  ];
- $('tvNet').textContent=TV_NET[siteChosen.country]||'GNN 7';
+ $('tvNet').textContent=opts.net||TV_NET[siteChosen.country]||'GNN 7';
  $('tvCap').classList.remove('on');
  $('tv').style.display='block';
  document.body.classList.add('tvon');
@@ -460,12 +466,12 @@ function tvCaption(who,text){
 function tvUpdate(dt){
  if(!tv.on)return;
  const busy=$('subs').classList.contains('on')||$('dialog').style.display==='block';
- if(launch.phase==='liftoff'){
+ if(tv.mode==='launch'&&launch.phase==='liftoff'){
   if(tv.ascIdx<TV_ASCENT.length&&launch.t>=TV_ASCENT[tv.ascIdx][0]&&!busy){
    const[,who,line]=TV_ASCENT[tv.ascIdx++];
    tvCaption(who,line);
   }
- }else{
+ }else if(tv.pool.length){
   tv.capT-=dt;
   if(tv.capT<=0&&!busy){
    const[who,line]=tv.pool[tv.poolIdx++%tv.pool.length];

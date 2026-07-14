@@ -593,8 +593,8 @@ function frame(now){
    },340);
   }
  }
+ if(tv.on)tvUpdate(dt);
  if(siteRoot&&siteRoot.visible){
-  if(sc==='LAUNCH')tvUpdate(dt);
   updateVapor(dt);
   if(plumeFlame){stepPool(plumeFlame,dt,6);stepPool(plumeSmoke,dt,.6);}
   updateBoosterFall(dt);
@@ -783,20 +783,25 @@ function frame(now){
  if(cabinRoot&&cabinRoot.visible)leds.forEach(m=>{
   const on=(Math.sin(now*.0012+m.userData.ph*3)+1)/2>.4;
   m.material.color.setHex(on?m.userData.base:0x22262b);});
- if(tv.on&&siteRoot&&siteRoot.visible){
-  /* live broadcast: press-site camera rendered into a corner of the main
+ if(tv.on&&(tv.sceneOk?tv.sceneOk():(siteRoot&&siteRoot.visible))){
+  /* live broadcast: broadcast camera rendered into a corner of the main
      canvas, blitted to the PiP's 2D canvas, then overdrawn by the main pass
-     (one GL context — a second WebGLRenderer miscomposites on some stacks) */
+     (one GL context — a second WebGLRenderer miscomposites on some stacks).
+     tv.camFn positions the camera per mode; default is the launch press cam. */
   const el=$('tvCanvas'),w=el.clientWidth,h=el.clientHeight;
   if(w>4){
    const pr=renderer.getPixelRatio(),tw=Math.floor(w*pr),th=Math.floor(h*pr);
    if(el.width!==tw){el.width=tw;el.height=th;}
-   const ry=rocket?rocket.position.y:0;
    tvCam.aspect=w/h;
-   tvCam.fov=lerpN(30,7,smooth(0,260,ry)); /* long lens tracks the climbout */
+   if(tv.camFn){
+    tv.camFn(tvCam,now);
+   }else{
+    const ry=rocket?rocket.position.y:0;
+    tvCam.fov=lerpN(30,7,smooth(0,260,ry)); /* long lens tracks the climbout */
+    tvCam.position.set(46,2.6,58);
+    tvCam.lookAt(Math.sin(now*.0013)*.6,ry+7+Math.sin(now*.0009)*.7,0); /* handheld sway */
+   }
    tvCam.updateProjectionMatrix();
-   tvCam.position.set(46,2.6,58);
-   tvCam.lookAt(Math.sin(now*.0013)*.6,ry+7+Math.sin(now*.0009)*.7,0); /* handheld sway */
    renderer.setScissorTest(true);
    renderer.setViewport(0,0,w,h);renderer.setScissor(0,0,w,h);
    renderer.render(scene,tvCam);
