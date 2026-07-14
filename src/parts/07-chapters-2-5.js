@@ -520,6 +520,7 @@ $('skipBtn').addEventListener('click',e=>{
  else if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'){SCN.abort=true;cancelVoice();if(SCN.tapFn)SCN.tapFn();}
  else if(sc==='TOUCH2')skipTouchdown();
  else if(sc==='ICE3')skipExtraction();
+ else if(sc==='DOCTV')leaveDocTv();
 });
 document.body.addEventListener('click',()=>{
  if(SCN.running&&SCN.tapFn)SCN.tapFn();
@@ -608,10 +609,11 @@ function frame(now){
    camBase.set(Math.sin(ang)*33,9.5,Math.cos(ang)*33);
    camLook.set(0,7,0);
   }
-  if(sc==='LAUNCH'&&launch.phase==='liftoff'){
+  if((sc==='LAUNCH'||sc==='DOCTV')&&launch.phase==='liftoff'){
    launch.t+=dt;
    while(launch.tlIdx<launch.timeline.length&&launch.t>=launch.timeline[launch.tlIdx][0]){
     launch.timeline[launch.tlIdx][1]();launch.tlIdx++;}
+   if(gameState.scene!==sc)return; /* a beat left the scene (DOCTV -> CH4): don't run ascent cam against it */
    if(launch.t>2.2){
     rocket.position.y=.9+Math.pow(launch.t-2.2,1.9)*.35;
     emitPlume(dt);
@@ -714,7 +716,8 @@ function frame(now){
     const dts=dt/SOL5_SEC;
     N5.T+=dts;c5Step(N5,N5.f,dts);
     if(N5.beat<N5_BEATS.length&&N5.T>=N5_BEATS[N5.beat][0]){
-     const b=N5_BEATS[N5.beat++];showDialog(b[1]());
+     const b=N5_BEATS[N5.beat++],s5=b[1]();
+     if(s5)showDialog(s5); /* flag-gated beats may opt out */
     }
    }
    $('nBatt').style.width=Math.min(100,N5.batt)+'%';
@@ -1328,6 +1331,61 @@ $('again3Btn').addEventListener('click',()=>{
  go('GAME3');
 });
 
+/* ================= DOCTV: the second launch, televised ================= */
+/* mediaDeal only: Eden Two carries the documentary crew up live on network TV,
+   then hands straight into Chapter 4 where they walk the base with cameras. */
+function enterDocTv(){
+ hideSub();document.body.classList.remove('cine','landing','ch4');
+ $('end3Card').style.display='none';
+ ['ghud','padCtl','limits','objWrap','ch4','timeCtl'].forEach(id=>$(id).style.display='none');
+ if(hasTHREE){
+  buildSite(gameState.site); /* rebuilds the stack on the pad; resets rocket pose + staging */
+  orbitRoot.visible=false;cabinRoot.visible=false;terraRoot.visible=false;
+  siteRoot.visible=true;
+  if(rover3)rover3.visible=false;
+  camBase.set(26,10,30);camLook.set(0,7,0);shakeAmp=0;
+ }
+ gameState.date='August 2031';updateHUD();
+ const slug=$('slug');
+ slug.textContent='Eden Two \u00b7 The Documentary Flight \u00b7 Live';
+ slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
+ tvShow({mode:'doc',
+  net:((gameState.site&&TV_NET[gameState.site.country])||'GNN 7')+' \u00b7 LIVE',
+  pool:[
+  ['ANCHOR',"Eden Two on the pad, live \u2014 two seats, forty cameras, and a deal signed over a phone call to the Moon."],
+  ['PAD',"The documentary crew waved all the way up the tower. Of course they did \u2014 they brought their own lighting."],
+  ['ANCHOR',"Two filmmakers riding a rocket to film three settlers. The pitch meeting must have taken nine seconds."],
+  ['PAD',"There's the thunder again \u2014 and this time the broadcast itself is the payload."],
+  ['ANCHOR',"Next stop, Shackleton Rim. From tonight, the Moon has a camera crew."]
+ ]});
+ gameState.log.push('Eden Two launched the documentary crew, live on network TV.');
+ launch.phase='liftoff';launch.t=0;launch.tlIdx=0;
+ launch.timeline=[
+  [0,()=>{callout('flight',"Eden Two, ignition.",true);setRumbleDrive(.55);shakeAmp=.12;}],
+  [2.2,()=>{callout('flight',"Liftoff. Liftoff of Eden Two \u2014 the documentary flight is away.",true);
+   setRumbleDrive(1);shakeAmp=.18;sfxSwell();}],
+  [10,()=>{shakeAmp=.1;callout('press',"Sixty million people are watching this climb-out live.",true);}],
+  [20,()=>{callout('flight',"Staging.",true);sfxThud(true);stageSeparation();shakeAmp=.14;}],
+  [21.5,()=>{shakeAmp=.05;setRumbleDrive(.45);}],
+  [23,()=>{tvCaption('ANCHOR',"Eden Two is downrange and gone \u2014 the next picture you see comes from the Moon.");}],
+  [25.5,()=>leaveDocTv()]
+ ];
+ $('missionClock').style.display='block';
+ $('skipBtn').style.display='block';
+ setMix('LAUNCH_GO',1.5);
+}
+function leaveDocTv(){
+ if(gameState.scene!=='DOCTV')return;
+ launch.tlIdx=launch.timeline.length;
+ launch.phase='idle';
+ cancelVoice();tvHide();hideSub();
+ shakeAmp=0;setRumbleDrive(0);
+ $('missionClock').style.display='none';
+ $('skipBtn').style.display='none';
+ if(hasTHREE){siteRoot.visible=false;scene.fog=null;}
+ go('CH4');
+}
+
 /* ================= Chapter 4: The Import Ledger ================= */
 let baseGrp=null,baseParts={};
 /* @c4-start */
@@ -1466,7 +1524,7 @@ function accrueSol(Sc,assign,hoursAcc){
 }
 /* @c4rt-end */
 let SPD=1;const SPD_V=[0,1,4,16],SOL_SEC=10;
-let crewFigs={},POI={};
+let crewFigs={},POI={},docFigs=[];
 function makeSurfaceCrew(hex){
  const g=new THREE.Group();
  const suit=new THREE.MeshPhongMaterial({color:0xe8e9ec,flatShading:true});
@@ -1488,6 +1546,21 @@ function makeSurfaceCrew(hex){
  arm.position.set(.46,1.45,.08);arm.rotation.z=-.5;g.add(arm);
  const armL=arm.clone();armL.position.x=-.46;armL.rotation.z=.5;g.add(armL);
  return {g,legs,arm,phase:Math.random()*7};
+}
+function makeDocCrew(){
+ /* documentary crewmate: darker visor + shoulder camera with a tally light */
+ const f=makeSurfaceCrew(0x1a2430);
+ const cam=new THREE.Mesh(new THREE.BoxGeometry(.3,.22,.44),
+  new THREE.MeshPhongMaterial({color:0x23262c,flatShading:true}));
+ cam.position.set(.34,2.28,.1);f.g.add(cam);
+ const lens=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.14,8),
+  new THREE.MeshPhongMaterial({color:0x0b0d10,shininess:80}));
+ lens.rotation.x=Math.PI/2;lens.position.set(.34,2.28,.38);f.g.add(lens);
+ const tally=new THREE.Mesh(new THREE.SphereGeometry(.045,6,5),
+  new THREE.MeshBasicMaterial({color:0xff3333}));
+ tally.position.set(.34,2.42,.1);f.g.add(tally);
+ f.wanderT=0;f.subject=null;
+ return f;
 }
 function buildColony(){
  POI={mine:[PAD_X-26,3],green:[PAD_X+6,5],elec:[PAD_X-9,3],
@@ -1517,6 +1590,15 @@ function buildColony(){
   f.g.visible=true;
   f.g.position.set(PAD_X-2+k*2.2,PAD_TOP,-6);
  });
+ /* documentary crewmates: parented to baseGrp so reset hides them with the base.
+    NOT in crewFigs — they never enter the assignment UI or the economy. */
+ docFigs.forEach(f=>f.g.visible=false);
+ if(gameState.flags.mediaDeal)ensureDocFigs();
+}
+function ensureDocFigs(){
+ /* build/show the doc pair; used by buildColony (CH4) and enterCh5 (cold jumps) */
+ while(docFigs.length<2){const f=makeDocCrew();docFigs.push(f);baseGrp.add(f.g);}
+ docFigs.forEach((f,i)=>{f.g.visible=true;f.g.position.set(PAD_X+2.5+i*2.4,PAD_TOP,-8.5);});
 }
 function renderCh4(){
  gameState.scene='CH4';
@@ -1676,6 +1758,36 @@ function ch4Update(dtReal){
    }
   }
  }
+ /* documentary crew: wander to the nearest working settler and film them */
+ if(docFigs.length&&docFigs[0].g.visible){
+  docFigs.forEach(f=>{
+   f.wanderT-=dtReal;
+   if(f.wanderT<=0||!f.subject||!f.subject.g.visible){
+    const subjects=Object.keys(crewFigs).filter(k=>crewFigs[k].g.visible);
+    if(subjects.length){
+     f.wanderT=7+Math.random()*9;
+     f.subject=crewFigs[subjects[Math.floor(Math.random()*subjects.length)]];
+    }
+   }
+   if(!f.subject)return;
+   const dx=f.subject.g.position.x-f.g.position.x,
+    dz=f.subject.g.position.z-f.g.position.z,
+    d=Math.hypot(dx,dz);
+   if(d>3.4&&spd>0){
+    const v=.9*Math.sqrt(Math.min(spd,4)||0);
+    f.g.position.x+=dx/d*v*dtReal;
+    f.g.position.z+=dz/d*v*dtReal;
+    const t=performance.now()*.008+f.phase;
+    f.legs[0].rotation.x=Math.sin(t)*.6;
+    f.legs[1].rotation.x=-Math.sin(t)*.6;
+    f.g.position.y=PAD_TOP+Math.abs(Math.sin(t))*.1;
+   }else{
+    f.legs[0].rotation.x*=.9;f.legs[1].rotation.x*=.9;
+    f.g.position.y=PAD_TOP+Math.sin(performance.now()*.0021+f.phase)*.05; /* filming bob */
+   }
+   if(d>.01)f.g.rotation.y=Math.atan2(dx,dz); /* keep the lens on the subject */
+  });
+ }
 }
 function refreshEnergyBars(){
  document.querySelectorAll('.crewCard').forEach(c=>{
@@ -1695,6 +1807,15 @@ function resolveBoundary(){
  const w0=S4.water,p0=S4.prop,f0=S4.foodPct,b0=S4.budget;
  const R=econWindow(S4,A,M4,Math.random);
  S4.lastR=R;
+ /* mediaDeal: the documentary keeps the program in living rooms — support never
+    bottoms out, and every other aired cut lifts the crew. (Outside @c4 on purpose.) */
+ if(gameState.flags.mediaDeal){
+  S4.support=Math.max(S4.support,2);
+  if(S4.w%2===0){
+   S4.morale=Math.min(5,S4.morale+1);
+   R.notes.push('The documentary cut aired \u2014 the crew watched themselves be heroes. Morale up.');
+  }
+ }
  reconcileTiles({water:S4.water-w0,prop:S4.prop-p0,food:S4.foodPct-f0,budget:S4.budget-b0});
  gameState.date=['September 2031','October 2031','November 2031','December 2031',
   'January 2032','February 2032','March 2032','April 2032'][Math.min(7,S4.w-2)];
@@ -1825,6 +1946,13 @@ function runCh4Event(R,done){
      else{S4.appropCut=true;gameState.log.push('Appropriations trimmed at the year vote.');}}}
   ],done);
  }
+ if(S4.w===2&&F.mediaDeal&&!u.docFilm){
+  u.docFilm=true;
+  return showDialog([
+   {s:'sys',t:'\u2014 downlink: the documentary crew\u2019s first reel \u2014 earthrise over the rim, the base small and bright below \u2014',noVoice:true},
+   {s:'cdr',t:"They filmed the whole window without saying a word. Half a planet just watched us make water in the dark."}
+  ],done);
+ }
  ev('reg',F.waivedAnomaly&&!S4.built.printer&&R.incident,[
   {s:'eng',t:"Found the breakdown. It's the waived regulator's cousin \u2014 same lot number. I am saying this calmly.",
    choices:[
@@ -1947,7 +2075,8 @@ function openReport4(suspended){
  $('end4Card').style.display='flex';
 }
 $('chap4Btn').addEventListener('click',()=>{
- sfxClick();$('end3Card').style.display='none';go('CH4');
+ sfxClick();$('end3Card').style.display='none';
+ go(gameState.flags.mediaDeal?'DOCTV':'CH4');
 });
 $('restartBtn5').addEventListener('click',()=>{
  sfxClick();$('end4Card').style.display='none';resetGame();
@@ -2010,6 +2139,11 @@ const N5_BEATS=[
     fx:()=>{N5.f.leak=true;},
     next:[{s:'eng',t:"Logged. For the record: the battery votes we go outside."}]}
   ]}]],
+ [3.2,()=>!gameState.flags.mediaDeal?null:[
+  {s:'sys',t:'\u2014 the documentary crew racks their camera lights into the heater bus \u2014 two years of film lamps, rewired without being asked \u2014',noVoice:true,
+   fx:()=>{N5.batt=Math.min(130,N5.batt+6);toast('Camera batteries racked into the bus: +6% power.',true);}},
+  {s:'eng',t:"Their lamp packs just bought us six percent of a night. Best crew we never assigned a shift."}
+ ]],
  [4.0,()=>[{s:'cdr',t:"The rover's been parked at the pad since the traverse with charge still in its packs. A walk in the dark would bring back twenty-two percent — and cost whoever makes it."
   ,choices:[
    {label:'"Go get it. Rope lights out and back."',tags:'+22% power · crew −15',
@@ -2027,6 +2161,8 @@ function enterCh5(){
   scene.background=new THREE.Color(0x000104);
   if(rover3)rover3.visible=false;
   buildBase();baseGrp.visible=true;
+  if(gameState.flags.mediaDeal)ensureDocFigs(); /* doc crew winters over too */
+  else docFigs.forEach(f=>f.g.visible=false);
   terraSun.position.set(-420,50,-160);
   terraSun.intensity=.22;terraSun.color.setHex(0x9fb8e8); /* earthshine only */
   terraAmb.intensity=.85;terraAmb.color.setHex(0x24354e);
