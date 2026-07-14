@@ -59,7 +59,15 @@ chapters. Scene transitions go through `go(name)`; audio follows via `mixMap`.
 ## Key tunables (grep the name)
 
 - Ch.2 lander: `GRAV/THRUST/ROT/BURN`, pad geometry `PAD_X/PAD_TOP/PAD_HALF`
-- Ch.3 traverse: `B3` object (drive/heater/drill economy), alarm thresholds in `updateRoverHud`
+- Ch.3 traverse: `B3` object (drive/heater/drill economy), alarm thresholds in
+  `updateRoverHud`; `icePremiere` crowd boost = `R3.heatLim×1.2` + `R3.coolDur=2.55`
+  in `resetTraverse` (sim models it via `{lim,coolDur}` opts)
+- USA leader-call deals are mechanical: `broadcast` → in-call PiP + anchor Q&A +
+  `startTvBed/stopTvBed` (03); `icePremiere` → traverse PiP + crowd boost +
+  `setPremiereArp` escalating motif arpeggios (03, `AM.premG`); `mediaDeal` →
+  `DOCTV` televised launch scene + `docFigs` documentarians + support floor/morale
+  bonus in `resolveBoundary` + gated `N5_BEATS` entry. TV engine is generic:
+  `tvShow({mode,pool,net,camFn,sceneOk})` (06)
 - Ch.5 night: `C5` object (drains, leak/EVA/blackout numbers) in the `@c5-*` pure
   block, pacing `SOL5_SEC=14`, beats in `N5_BEATS`
 - Ch.4 colony: `C4` object (rates, ledger masses, project costs), `CREWD` skills,
