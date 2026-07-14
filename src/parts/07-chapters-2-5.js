@@ -694,7 +694,7 @@ function frame(now){
    const up=Math.max(0,Math.sin(Math.max(a.elevDeg,0)*Math.PI/180+.02));
    terraSun.intensity=.15+1.45*Math.min(1,up*22)*Math.max(.25,a.sf);
    terraSun.color.setHSL(.09,.5,.62+.3*Math.min(1,a.elevDeg/1.2));
-   sunDisc.position.copy(terraSun.position).setLength(760);
+   sunDisc.position.copy(terraSun.position).setLength(2400);
    sunDisc.visible=a.elevDeg>-1.4;
    terraAmb.intensity=.9-(1-a.sf)*.45;
    terraAmb.color.setHex(a.sf<.35?0x24354e:0x1c2530); /* earthshine blue in the dark */

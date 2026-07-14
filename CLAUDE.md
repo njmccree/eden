@@ -46,7 +46,7 @@ chapters + interlude + chapter select. Next planned: **Chapter Five — The Long
 | 02-data.js | `EDEN_BUILD`, SITES/BACKGROUNDS/MODULES tables, `newGameState()`, NPCS voice map |
 | 03-audio.js | One 72 BPM transport (title runs 85), layer mixes per scene, SFX, beat-locked alarm system, TTS/blip voice |
 | 04-earth-launch.js | Earth textures, orbital cutscene, launch site, 2031 rocket (booster+upper groups), staging, world-space plume, launch-sky star shader |
-| 05-lunar-scene.js | Cabin + moon-window scenes, crew rigs, lunar terrain (`terrainH`), lander, particle pools, `terraSun`/`terraAmb`/`earthBall` handles |
+| 05-lunar-scene.js | Cabin + moon-window scenes, crew rigs, lunar terrain (`terrainH` gameplay profile at z=0; `terrainH3`/`wildH`/`CRATERS` 3D heightfield around it), horizon rings, lander, particle pools, `terraSun`/`terraAmb`/`earthBall` handles |
 | 06-chapter-one.js | Ch.1 management game, dialog engine, `go()` scene router + `mixMap`, settings, `resetGame()` |
 | 07-chapters-2-5.js | Cutscenes, Ch.2 lander, Ch.3 call + traverse, Ch.4 colony (astronomy, crew, econ), Crew Archive, frame loop, boot |
 
@@ -63,6 +63,12 @@ chapters. Scene transitions go through `go(name)`; audio follows via `mixMap`.
   astronomy in `astro()` (synodic 29.5306 d, draconic 27.2122 d, rim horizon geometry)
 - Alarm musicality: `setAlarmLevels` buses in 03-audio (cold/battery/slope reuse the
   descent V/S / H/S / tilt voices)
+- Terrain (05): `terrainH(x)` is the gameplay truth on the z=0 line — **never change
+  it without re-running the sims**. Visuals live in `wildH`/`terrainH3` (corridor
+  blend `smooth(16,120,|z|)`), `CRATERS` (min radius ≥ ~3 grid cells or they alias
+  to spikes), `terrainPatch` grids (7 m fine / 34 m coarse, coarse dropped 2.5 m),
+  `buildHorizon` rings. Keep patch cells square — anisotropic cells sliver into
+  teeth at grazing sun angles.
 
 ## Editing gotchas (hard-won)
 

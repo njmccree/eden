@@ -88,6 +88,107 @@ function groundY(x){
  return (Math.abs(x-PAD_X)<=PAD_HALF)?PAD_TOP:terrainH(x);
 }
 
+/* ---- 3D terrain field (visual only — gameplay reads terrainH(x) on the z=0 line) ----
+   Real polar morphology at metre scale: a deterministic crater field with
+   parabolic bowls, raised rims (~4% D) and ejecta falloff; the ice bowl
+   circularised into a proper PSR; the eastern rise treated as a crater-rim
+   flank arcing away northward. Inside the traverse corridor (|z|<16, faded
+   out by 46) the height is exactly terrainH(x), so Ch.2 landing physics,
+   Ch.3 battery economy and every sim stay untouched. */
+const CRATERS=(()=>{
+ const L=[];
+ for(let k=0;k<560&&L.length<120;k++){
+  const cx=-1500+hash3(k,17,3)*3000,cz=-1500+hash3(k,29,11)*3000;
+  const r=20+48*Math.pow(hash3(k,41,7),2.6); /* min ~3x grid cell or craters alias to spikes */
+  if(Math.abs(cz)<46+r*2.6+6)continue;              /* keep the corridor clean */
+  if(Math.hypot(cx-PAD_X,cz)<r*2.6+60)continue;     /* and the pad approaches */
+  const age=.3+.7*hash3(k,53,19);                   /* old craters are softened */
+  L.push([cx,cz,r,r*.3*age,r*.08*age]);
+ }
+ return L;
+})();
+function craterD(x,z){
+ let h=0;
+ for(const[cx,cz,r,dep,rim]of CRATERS){
+  const dx=x-cx;if(dx<-r*2.4||dx>r*2.4)continue;
+  const dz=z-cz;if(dz<-r*2.4||dz>r*2.4)continue;
+  const q=Math.hypot(dx,dz)/r;
+  if(q<1)h+=dep*(q*q-1)+rim*q*q*q*q;
+  else if(q<2.4)h+=rim*Math.pow((2.4-q)/1.4,3);
+ }
+ return h;
+}
+function wildH(x,z){
+ const xr=x+z*z*.00035;                             /* rim flank curves away */
+ const fl=smooth(70,230,xr);
+ let h=10+((fbm(x*.0085+7,z*.0085+2.2,4.4,3)-.5)*22
+  +(vnoise(x*.028+2,z*.028+8.1,1.2)-.5)*1.6)*(1-.65*fl); /* calm the steep wall */
+ const rb=Math.hypot(x+158,z);
+ h-=(1-smooth(12,97,rb))*24;                        /* the PSR ice bowl */
+ h+=fl*64+smooth(240,900,xr)*80
+  +smooth(150,320,xr)*(fbm(x*.006+1,z*.006+5,7.7,3)-.4)*44;
+ return h+craterD(x,z);
+}
+function terrainH3(x,z){
+ const w=(1-smooth(16,120,Math.abs(z)))*smooth(-500,-390,x)*(1-smooth(390,500,x));
+ if(w>=1)return terrainH(x);
+ const h=wildH(x,z);
+ return w>0?lerpN(h,terrainH(x),w):h;
+}
+function terraShade(x,z,h){
+ const mf=1-smooth(300,800,Math.hypot(x,z));        /* mottle aliases on coarse far cells */
+ let v=1+(vnoise(x*.02+4,z*.02+6,9.9)-.5)*.14*mf;   /* albedo mottle */
+ const rb=Math.hypot(x+158,z);
+ v*=1-.62*(1-smooth(30,95,rb));                     /* PSR floor goes near-black */
+ const cd=craterD(x,z);
+ if(cd<0)v*=1-.12*Math.min(1,-cd/6);                /* dusty crater floors */
+ v*=1+smooth(40,140,h)*.06;                         /* sunward flank a touch lighter */
+ return v;
+}
+/* two uniform patches (square cells — graded/aniso cells sliver into teeth
+   at grazing angles): fine 7m inner grid, coarse 34m outer grid dropped .5m
+   so it tucks under the inner one instead of z-fighting */
+function terrainPatch(x0,x1,z0,z1,step,drop){
+ const nx=Math.round((x1-x0)/step)+1,nz=Math.round((z1-z0)/step)+1;
+ const pos=new Float32Array(nx*nz*3),col=new Float32Array(nx*nz*3);
+ let p=0;
+ for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
+  const x=x0+i*step,z=z0+j*step,h=terrainH3(x,z)-drop;
+  pos[p]=x;pos[p+1]=h;pos[p+2]=z;
+  const s=terraShade(x,z,h);
+  col[p]=s;col[p+1]=s;col[p+2]=Math.min(1.2,s*1.02);
+  p+=3;
+ }
+ const idx=[];
+ for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){
+  const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
+  idx.push(a,c,d,a,d,b); /* uniform diagonal — alternating splits checkerboard on curved slopes */
+ }
+ const g=new THREE.BufferGeometry();
+ g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+ g.setAttribute('color',new THREE.BufferAttribute(col,3));
+ g.setIndex(idx);
+ return new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:0x9a9da2,
+  vertexColors:true,flatShading:true,shininess:3}));
+}
+function buildHorizon(R,base,lift,tone){
+ const N=150,pos=new Float32Array((N+1)*2*3),idx=[];
+ for(let i=0;i<=N;i++){
+  const a=i/N*Math.PI*2,cx=Math.cos(a),sz=Math.sin(a);
+  const e=smooth(.1,1,cx);                          /* taller toward the east rim */
+  const h=base+e*lift*.9+(fbm(cx*3+2,sz*3+7,5.5,3)-.35)*lift;
+  const o=i*6;
+  pos[o]=cx*R;pos[o+1]=-60;pos[o+2]=sz*R;
+  pos[o+3]=cx*R;pos[o+4]=h;pos[o+5]=sz*R;
+  if(i<N){const q=i*2;idx.push(q,q+1,q+2,q+1,q+3,q+2);}
+ }
+ const g=new THREE.BufferGeometry();
+ g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+ g.setIndex(idx);
+ return new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:tone,
+  flatShading:true,shininess:2,side:THREE.DoubleSide}));
+}
+
 function makeCrew(accent){
  const g=new THREE.Group();
  const suit=new THREE.MeshPhongMaterial({color:0xe4e6ea,flatShading:true,shininess:12});
@@ -228,19 +329,10 @@ function buildCabin(){
 
 function buildLunar(){
  terraRoot=new THREE.Group();terraRoot.visible=false;scene.add(terraRoot);
- const shape=new THREE.Shape();
- shape.moveTo(-420,-140);
- for(let x=-420;x<=320;x+=5)shape.lineTo(x,terrainH(x));
- shape.lineTo(320,-140);shape.lineTo(-420,-140);
- const terra=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:70,bevelEnabled:false}),
-  new THREE.MeshPhongMaterial({color:0x9a9da2,flatShading:true,shininess:3}));
- terra.position.z=-62;terraRoot.add(terra);
- const back=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:30,bevelEnabled:false}),
-  new THREE.MeshPhongMaterial({color:0x494d54,flatShading:true}));
- back.scale.set(1.5,1.7,1);back.position.set(60,-24,-190);terraRoot.add(back);
- const shadow=new THREE.Mesh(new THREE.PlaneGeometry(190,60),
-  new THREE.MeshBasicMaterial({color:0x000208,transparent:true,opacity:.62,depthWrite:false}));
- shadow.position.set(-165,-14,4.5);terraRoot.add(shadow);
+ terraRoot.add(terrainPatch(-620,422,-280,140,7,0));
+ terraRoot.add(terrainPatch(-1520,1520,-1520,1520,34,2.5));
+ terraRoot.add(buildHorizon(1580,40,190,0x4b4f57)); /* far rim ridgeline */
+ terraRoot.add(buildHorizon(1150,10,110,0x5d616a)); /* nearer ridge for parallax */
  const slab=new THREE.Mesh(new THREE.BoxGeometry(PAD_HALF*2,1.3,20),
   new THREE.MeshPhongMaterial({color:0x6d7178,flatShading:true}));
  slab.position.set(PAD_X,6.05,0);terraRoot.add(slab);
@@ -249,21 +341,23 @@ function buildLunar(){
    new THREE.MeshBasicMaterial({color:0x7fe08f}));
   b.position.set(PAD_X+dx,PAD_TOP+.6,8.5);terraRoot.add(b);beacons.push(b);}
  const tStars=new Float32Array(900*3);
- for(let i=0;i<900;i++){tStars[i*3]=(Math.random()-.5)*1600;
-  tStars[i*3+1]=Math.random()*700-40;tStars[i*3+2]=-250-Math.random()*500;}
+ for(let i=0;i<900;i++){tStars[i*3]=(Math.random()-.5)*3400;
+  tStars[i*3+1]=240+Math.random()*1000;tStars[i*3+2]=-1750-Math.random()*750;}
  const tsg=new THREE.BufferGeometry();
  tsg.setAttribute('position',new THREE.BufferAttribute(tStars,3));
- terraRoot.add(new THREE.Points(tsg,new THREE.PointsMaterial({color:0xcfd9e8,size:1.6,
-  sizeAttenuation:false,transparent:true,opacity:.85})));
- earthBall=new THREE.Mesh(new THREE.SphereGeometry(11,20,16),
+ const tsp=new THREE.Points(tsg,new THREE.PointsMaterial({color:0xcfd9e8,size:1.6,
+  sizeAttenuation:false,transparent:true,opacity:.85}));
+ terraRoot.add(tsp);
+ const tsp2=tsp.clone();tsp2.rotation.y=Math.PI;terraRoot.add(tsp2); /* southern sky */
+ earthBall=new THREE.Mesh(new THREE.SphereGeometry(34,20,16),
   new THREE.MeshPhongMaterial({map:earthBallTexture(),shininess:8}));
- earthBall.position.set(-260,300,-560);terraRoot.add(earthBall); /* lit by terraSun -> real phase */
+ earthBall.position.set(-870,300,-1870);terraRoot.add(earthBall); /* beyond the rim ring; lit by terraSun -> real phase */
  terraSun=new THREE.DirectionalLight(0xffe8cc,1.45);
- terraSun.position.set(420,70,140);terraRoot.add(terraSun);
- terraAmb=new THREE.AmbientLight(0x1c2530,.9);terraRoot.add(terraAmb);
- sunDisc=new THREE.Mesh(new THREE.SphereGeometry(9,12,10),
+ terraSun.position.set(420,110,140);terraRoot.add(terraSun);
+ terraAmb=new THREE.AmbientLight(0x1c2530,1.15);terraRoot.add(terraAmb);
+ sunDisc=new THREE.Mesh(new THREE.SphereGeometry(28,12,10),
   new THREE.MeshBasicMaterial({color:0xfff3da}));
- sunDisc.position.copy(terraSun.position).setLength(760);terraRoot.add(sunDisc);
+ sunDisc.position.copy(terraSun.position).setLength(2400);terraRoot.add(sunDisc);
  lander=new THREE.Group();
  const lWhite=new THREE.MeshPhongMaterial({color:0xe8e9ec,flatShading:true,shininess:22});
  const lDark=new THREE.MeshPhongMaterial({color:0x2b3038,flatShading:true});

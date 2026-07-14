@@ -133,7 +133,30 @@ try {
     await page.close();
   }
 
-  // Pass 2: fresh page per chapter so forged state never bleeds between shots.
+  // Pass 2: terrain-focused scenes the archive can't reach directly — jump via
+  // the game's own globals (forgeHistory/go are top-level script functions).
+  {
+    const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+    await bootToMenu(page, base, 'ch2-descent');
+    // Direct jumps skip the COAST cutscene that normally hides the orbit scene.
+    await page.evaluate(() => { forgeHistory(3); $('menu').classList.add('gone'); orbitRoot.visible = false; go('GAME2'); });
+    await page.waitForTimeout(2500);
+    await shot(page, '09-ch2-descent');
+    await page.close();
+  }
+  {
+    const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+    await bootToMenu(page, base, 'ch3-traverse');
+    await page.evaluate(() => { forgeHistory(4); $('menu').classList.add('gone'); orbitRoot.visible = false; go('GAME3'); });
+    await page.waitForTimeout(3000);
+    await shot(page, '10-ch3-traverse-start');
+    await page.evaluate(() => { R3.x = -160; }); // teleport into the shadowed bowl
+    await page.waitForTimeout(1500);
+    await shot(page, '11-ch3-traverse-bowl', {minStd: 3}); // PSR is meant to be dark
+    await page.close();
+  }
+
+  // Pass 3: fresh page per chapter so forged state never bleeds between shots.
   for (const ch of CHAPTERS) {
     const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
     await bootToMenu(page, base, ch.name);
