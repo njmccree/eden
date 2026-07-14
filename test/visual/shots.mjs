@@ -124,6 +124,10 @@ try {
     console.log(`${vok ? 'ok  ' : 'FAIL'} version tag "${vtag}" (dist has ${EXPECT_BUILD})`);
     if (!vok) errors.push(`version tag mismatch: "${vtag}" vs EDEN_BUILD ${EXPECT_BUILD}`);
     await shot(page, '02-title-menu');
+    await page.evaluate(() => { orbitRoot.userData.world.rotation.y = 4.2; }); // face Africa/Europe
+    await page.waitForTimeout(400);
+    await shot(page, '02b-title-earth-east'); // antimeridian-crossing rings once inverted this hemisphere
+    await page.evaluate(() => { orbitRoot.userData.world.rotation.y = 0; });
     await page.click('#archBtn');
     await page.waitForSelector('#archive', {state: 'visible'});
     const rows = await page.locator('.archRow').count();
@@ -153,6 +157,33 @@ try {
     await page.evaluate(() => { R3.x = -160; }); // teleport into the shadowed bowl
     await page.waitForTimeout(1500);
     await shot(page, '11-ch3-traverse-bowl', {minStd: 3}); // PSR is meant to be dark
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+    await bootToMenu(page, base, 'ch1-launch');
+    await page.evaluate(() => {
+      forgeHistory(1);
+      $('menu').classList.add('gone');
+      siteChosen = SITES[0]; gameState.site = SITES[0];
+      buildSite(siteChosen);
+      orbitRoot.visible = false; siteRoot.visible = true;
+      scene.background = new THREE.Color(siteChosen.sky.top);
+      go('LAUNCH');
+    });
+    await page.waitForTimeout(2500);
+    await shot(page, '12-ch1-launch-count'); // go/no-go polls + broadcast PiP on the pad
+    await page.evaluate(() => {
+      launch.anomalyDone = true; // deterministic: skip the random helium event
+      document.querySelectorAll('#polls button').forEach(b => b.click());
+    });
+    await page.waitForTimeout(1400);
+    await page.evaluate(() => { ignition(); });
+    await page.waitForTimeout(800);
+    await page.evaluate(() => { launch.t = 28; }); // jump mid-ascent
+    await page.waitForTimeout(5500);
+    await shot(page, '13-ch1-ascent'); // PiP long-lens tracking, reporter caption
     await page.close();
   }
 
