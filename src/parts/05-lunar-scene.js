@@ -23,17 +23,20 @@ function moonTexture(){
  return new THREE.CanvasTexture(c);
 }
 function smallEarthTexture(){
- const W=128,H=64,c=document.createElement('canvas');c.width=W;c.height=H;
+ const W=256,H=128,c=document.createElement('canvas');c.width=W;c.height=H;
  const g=c.getContext('2d'),img=g.createImageData(W,H);
+ const L=landMask(W,H); /* real coastlines (04) — cabin window + earthBall */
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-  const th=(x/W)*Math.PI*2,v=y/H;
-  const e=fbm(Math.cos(th)*2*.9+9,Math.sin(th)*2*.9+4,v*4*.9+2,4);
-  const land=e>.55,lat=Math.abs(v*2-1);
-  let r,gg,b;
-  if(lat>.86){r=235;gg=242;b=247;}
-  else if(land){r=88;gg=126;b=84;}
-  else{r=36;gg=104;b=150;}
-  const o=(y*W+x)*4;img.data[o]=r;img.data[o+1]=gg;img.data[o+2]=b;img.data[o+3]=255;}
+  const v=y/H,lat=90-180*v,alat=Math.abs(lat);
+  const i=y*W+x,m=L.mask[i*4+3]/255;
+  let r=30,gg=98,b=142;
+  if(m>.02){
+   const lr=lerpN(84,150,smooth(35,65,alat)),lg=lerpN(124,150,smooth(35,65,alat)),lb=lerpN(80,134,smooth(35,65,alat));
+   r=lerpN(r,lr,m);gg=lerpN(gg,lg,m);b=lerpN(b,lb,m);
+  }
+  const ice=Math.max(smooth(-58,-66,lat),smooth(72,80,alat));
+  r=lerpN(r,233,ice);gg=lerpN(gg,240,ice);b=lerpN(b,246,ice);
+  const o=i*4;img.data[o]=r;img.data[o+1]=gg;img.data[o+2]=b;img.data[o+3]=255;}
  g.putImageData(img,0,0);
  return new THREE.CanvasTexture(c);
 }
