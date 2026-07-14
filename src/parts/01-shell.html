@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>EDEN — First Light</title>
+<style>
+  :root{
+    --space:#05070d; --ink:#eef3f0; --dim:#8b96a8; --line:#2a3342;
+    --accent:#6fd8c8; --dawn:#ffc06a; --go:#7fe08f; --warn:#ffb35c; --bad:#ff7a6b;
+    --cdr:#9fc2e8; --eng:#ff9d5c; --sci:#ffc06a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{background:var(--space);color:var(--ink);
+    font-family:'Avenir Next','Helvetica Neue',Helvetica,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+  .mono{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;min-height:44px}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40;transition:opacity .5s}
+  #fade{position:fixed;inset:0;background:#05070d;opacity:0;pointer-events:none;z-index:39;transition:opacity 1.2s}
+  #fade.out{opacity:1}
+
+  .bar{position:fixed;left:0;right:0;height:7vh;background:#000;z-index:15;transition:transform 1s ease}
+  #barT{top:0;transform:translateY(-100%)}
+  #barB{bottom:0;transform:translateY(100%)}
+  body.cine #barT{transform:none}
+  body.cine #barB{transform:none}
+
+  .corner{position:fixed;width:22px;height:22px;border:1px solid var(--line);z-index:5;pointer-events:none;transition:opacity .6s}
+  .corner.tl{top:12px;left:12px;border-right:0;border-bottom:0}
+  .corner.tr{top:12px;right:12px;border-left:0;border-bottom:0}
+  .corner.bl{bottom:12px;left:12px;border-right:0;border-top:0}
+  .corner.br{bottom:12px;right:12px;border-left:0;border-top:0}
+  body.cine .corner{opacity:0}
+
+  #boot{position:fixed;inset:0;z-index:60;background:var(--space);display:flex;
+    flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 1s}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .mark{font-weight:200;font-size:24px;letter-spacing:.7em;margin-left:.7em;text-transform:uppercase}
+  #boot .status{font-size:10px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase}
+  #boot.ready{cursor:pointer}
+  #boot .status.ready{color:var(--ink);animation:bpulse 1.8s ease-in-out infinite}
+  @keyframes bpulse{50%{opacity:.4}}
+
+  #menu{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;
+    padding:calc(12px + 6vh) 8vw 0;pointer-events:none;transition:opacity .9s, visibility 0s}
+  #menu.gone{opacity:0;visibility:hidden;pointer-events:none!important;
+    transition:opacity .9s, visibility 0s .9s}
+  #menu.gone nav{pointer-events:none!important}
+  #menu.hidden{visibility:hidden}
+  .eyebrow{font-size:10px;letter-spacing:.5em;color:var(--dim);text-transform:uppercase}
+  .eyebrow .tick{color:var(--accent)}
+  #menu h1{font-weight:200;font-size:clamp(60px,14vw,150px);letter-spacing:.42em;
+    margin:8px 0 4px -0.03em;text-transform:uppercase;text-shadow:0 0 34px rgba(140,220,205,.22)}
+  #menu .sub{max-width:32em;font-size:13.5px;line-height:1.7;color:var(--dim);letter-spacing:.04em}
+  #menu nav{margin-top:5vh;display:flex;flex-direction:column;gap:2px;align-items:flex-start;pointer-events:auto}
+  #menu nav button{font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);
+    padding:11px 8px 11px 22px;position:relative;text-align:left}
+  #menu nav button::before{content:'';position:absolute;left:0;top:50%;width:7px;height:7px;margin-top:-3.5px;
+    border-radius:50%;border:1px solid var(--dim);transform:scale(.55);opacity:.5}
+  #menu nav button:hover,#menu nav button:focus-visible{color:var(--ink)}
+  #menu nav button:hover::before{transform:scale(1);opacity:1;border-color:var(--accent);background:var(--accent)}
+  #menu nav button.primary{color:var(--ink)}
+  #menu nav button.primary::before{border-color:var(--accent);opacity:.9}
+  #menu .vtag{position:absolute;left:8vw;bottom:calc(18px + env(safe-area-inset-bottom));
+    font-size:9.5px;letter-spacing:.3em;color:#525d6e;text-transform:uppercase}
+  @media (max-width:760px){#menu{padding:calc(12px + 8vh) 7vw 0}}
+
+  #hud{position:fixed;top:14px;left:16px;z-index:20;font-size:10.5px;letter-spacing:.12em;
+    color:var(--dim);display:none;flex-direction:column;gap:3px;text-transform:uppercase}
+  #hud .site{color:var(--ink);letter-spacing:.2em;font-size:11px}
+  #hud .row{display:flex;gap:14px;flex-wrap:wrap}
+  #hud .pip{color:var(--accent);letter-spacing:.1em}
+  #hud .delta{color:var(--go);margin-left:6px;opacity:0;transition:opacity .3s}
+  #hud .delta.neg{color:var(--bad)}
+  #hud .delta.show{opacity:1}
+
+  body.landing #objWrap{top:118px}
+  #objWrap{position:fixed;top:14px;right:16px;z-index:20;display:none;align-items:flex-start;gap:10px}
+  #objective{text-align:right;font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;max-width:46vw}
+  #objective .check{color:var(--go);display:inline-block;transform:scale(0);transition:transform .35s cubic-bezier(.2,1.6,.4,1)}
+  #objective.done .check{transform:scale(1)}
+  #gear{border:1px solid var(--line);border-radius:4px;color:var(--dim);width:44px;height:44px;
+    display:flex;align-items:center;justify-content:center;font-size:16px;pointer-events:auto}
+  #gear:hover{color:var(--ink);border-color:var(--dim)}
+
+  #missionClock{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:20;display:none;
+    font-size:22px;letter-spacing:.24em;color:var(--ink);text-shadow:0 0 18px rgba(140,220,205,.35)}
+
+  #slug{position:fixed;top:calc(7vh + 14px);left:50%;transform:translateX(-50%);z-index:16;
+    font-size:10px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;
+    opacity:0;transition:opacity 1s;text-align:center;max-width:90vw}
+  #slug.show{opacity:1}
+
+  #titleCard{position:fixed;inset:0;z-index:35;display:none;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:0 8vw;pointer-events:none}
+  #titleCard .name{font-weight:200;font-size:clamp(30px,7vw,64px);letter-spacing:.3em;text-transform:uppercase}
+  #titleCard .flavor{margin-top:12px;color:var(--dim);font-size:13px;letter-spacing:.12em;font-style:italic}
+
+  #dialog{position:fixed;left:0;right:0;bottom:0;z-index:25;display:none;padding:12px 14px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,rgba(6,9,15,.96) 65%,rgba(6,9,15,0));}
+  #dialog .box{max-width:720px;margin:0 auto}
+  #dialog .head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  #dialog canvas{width:40px;height:40px;border-radius:6px;border:1px solid var(--line)}
+  #dialog .name{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent)}
+  #dialog .text{min-height:64px;font-size:15px;line-height:1.65;color:var(--ink)}
+  #dialog .hint{font-size:9px;letter-spacing:.24em;color:#525d6e;text-transform:uppercase;margin-top:8px;text-align:right}
+  #choices{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  #choices button{border:1px solid var(--line);border-radius:6px;padding:11px 14px;text-align:left;
+    font-size:13.5px;line-height:1.5;color:var(--ink);background:rgba(16,21,30,.7)}
+  #choices button:hover:not(:disabled){border-color:var(--accent)}
+  #choices button:disabled{opacity:.42;cursor:not-allowed}
+  #choices .tags{display:block;margin-top:3px;font-size:10.5px;letter-spacing:.1em;color:var(--dawn)}
+  #choices .lock{color:var(--dim);font-style:italic}
+
+  #subs.top{bottom:auto;top:calc(7vh + 96px);width:min(560px,90vw)}
+  #subs{position:fixed;left:50%;bottom:calc(7vh + 16px);transform:translateX(-50%);z-index:34;
+    width:min(660px,92vw);text-align:center;pointer-events:none;
+    background:rgba(6,9,14,.8);border:1px solid rgba(42,51,66,.75);border-radius:10px;
+    padding:10px 16px 8px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    opacity:0;transition:opacity .3s}
+  #subs.on{opacity:1}
+  #subWho{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;
+    opacity:0;transition:opacity .3s}
+  #subText{font-size:clamp(14px,2.3vw,18px);line-height:1.5;color:var(--ink);min-height:2.4em}
+
+  .screen{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;
+    justify-content:center;padding:70px 16px 24px;background:rgba(5,7,13,.82);backdrop-filter:blur(4px);overflow-y:auto}
+  .screen h2{font-weight:300;font-size:15px;letter-spacing:.4em;text-transform:uppercase;margin-bottom:6px}
+  .screen .lede{color:var(--dim);font-size:12.5px;letter-spacing:.08em;margin-bottom:18px;text-align:center;max-width:34em}
+  .cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:860px}
+  .card{width:min(250px,86vw);border:1px solid var(--line);border-radius:8px;padding:16px;
+    background:rgba(14,19,28,.9);text-align:left;display:flex;flex-direction:column;gap:8px}
+  .card:hover{border-color:var(--accent)}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .card .t{font-size:13px;letter-spacing:.2em;text-transform:uppercase}
+  .card .d{font-size:12px;line-height:1.6;color:var(--dim)}
+  .card .fx{font-size:11px;letter-spacing:.08em;color:var(--dawn)}
+  .card .meta{font-size:10.5px;letter-spacing:.1em;color:var(--dim)}
+  .bars{width:min(520px,90vw);margin:16px 0 6px;display:flex;flex-direction:column;gap:8px}
+  .bar2{height:10px;border:1px solid var(--line);border-radius:5px;overflow:hidden;position:relative}
+  .bar2 i{position:absolute;inset:0;width:0%;background:var(--accent);transition:width .3s}
+  .bar2.cost i{background:var(--dawn)}
+  .bar2.over i{background:var(--bad)}
+  .barlab{font-size:10px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;display:flex;justify-content:space-between}
+  .confirm{margin-top:14px;border:1px solid var(--accent);border-radius:6px;color:var(--ink);
+    padding:12px 26px;letter-spacing:.28em;text-transform:uppercase;font-size:12px}
+  .confirm:disabled{opacity:.35;border-color:var(--line)}
+  .sidebtns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+  .sidebtns button{border:1px dashed var(--line);border-radius:6px;padding:9px 12px;font-size:11px;
+    letter-spacing:.1em;color:var(--dim)}
+  .sidebtns button:not(:disabled):hover{color:var(--ink);border-color:var(--dim)}
+  .sidebtns button:disabled{opacity:.4;cursor:not-allowed}
+  .ghost{border:1px solid var(--line);border-radius:6px;padding:11px 18px;font-size:10.5px;
+    letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+  .ghost:hover{color:var(--ink);border-color:var(--dim)}
+
+  #polls{display:flex;flex-direction:column;gap:10px;width:min(420px,90vw)}
+  #polls button{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);
+    border-radius:6px;padding:13px 16px;font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink);
+    background:rgba(14,19,28,.9)}
+  #polls button .st{color:var(--dim);letter-spacing:.18em;font-size:11px}
+  #polls button.go{border-color:var(--go)}
+  #polls button.go .st{color:var(--go)}
+  #holdWrap{display:none;flex-direction:column;align-items:center;gap:14px;margin-top:10px}
+  #holdBtn{width:132px;height:132px;border-radius:50%;border:1px solid var(--accent);color:var(--ink);
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;position:relative;
+    background:radial-gradient(circle at 50% 50%,rgba(111,216,200,.12),rgba(10,14,22,.9) 70%);touch-action:none}
+  #holdBtn .ring{position:absolute;inset:-1px;border-radius:50%;
+    background:conic-gradient(var(--dawn) calc(var(--p,0)*1%), transparent 0);
+    -webkit-mask:radial-gradient(circle,transparent 62%,#000 64%);mask:radial-gradient(circle,transparent 62%,#000 64%)}
+  #holdHint{font-size:10px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase}
+
+  #endCard .recap{margin:14px 0 4px;display:flex;flex-direction:column;gap:6px;max-width:34em}
+  #endCard .recap div{font-size:12.5px;color:var(--dim);letter-spacing:.05em;line-height:1.5}
+  #endCard .recap div::before{content:'▸ ';color:var(--accent)}
+  #endCard .hook{margin-top:10px;color:var(--dawn);font-size:12px;letter-spacing:.22em;text-transform:uppercase}
+
+  #ghud{position:fixed;top:10px;left:12px;right:12px;z-index:20;display:none;
+    justify-content:space-between;align-items:flex-start;font-size:11px;letter-spacing:.12em;
+    color:var(--dim);text-transform:uppercase;pointer-events:none}
+  #ghud .grp{display:flex;flex-direction:column;gap:3px;background:rgba(5,8,13,.62);
+    border:1px solid rgba(42,51,66,.6);border-radius:7px;padding:8px 11px}
+  #ghud .v{color:var(--ink);font-size:14px}
+  #ghud .v.warn{color:var(--dawn)} #ghud .v.bad{color:var(--bad)}
+  #fuelWrap{width:130px}
+  #fuelBar{height:9px;border:1px solid var(--line);border-radius:5px;overflow:hidden;position:relative;margin-top:3px}
+  #fuelBar i{position:absolute;inset:0;width:100%;background:var(--accent);transition:width .2s}
+  #fuelBar.low i{background:var(--bad)}
+  #limits{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:20;display:none;
+    font-size:9px;letter-spacing:.2em;color:#525d6e;text-transform:uppercase;text-align:center}
+
+  #padCtl{position:fixed;left:0;right:0;bottom:0;z-index:25;display:none;
+    padding:0 14px calc(16px + env(safe-area-inset-bottom));justify-content:space-between;align-items:flex-end;gap:10px}
+  .rcs{width:76px;height:76px;border-radius:50%;border:1px solid var(--line);color:var(--dim);
+    font-size:22px;background:rgba(10,14,22,.72);touch-action:none}
+  .rcs:active{border-color:var(--accent);color:var(--ink)}
+  #thrust{flex:1;max-width:300px;height:92px;border-radius:14px;border:1px solid var(--accent);
+    color:var(--ink);font-size:12px;letter-spacing:.3em;text-transform:uppercase;
+    background:radial-gradient(circle at 50% 120%,rgba(255,192,106,.25),rgba(10,14,22,.85) 70%);touch-action:none}
+  #thrust:active{background:radial-gradient(circle at 50% 120%,rgba(255,192,106,.5),rgba(10,14,22,.85) 75%)}
+  #ventBtn{position:fixed;left:50%;bottom:calc(126px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    z-index:26;display:none;border:1px solid var(--bad);border-radius:8px;color:var(--ink);
+    padding:13px 26px;font-size:12px;letter-spacing:.26em;text-transform:uppercase;
+    background:rgba(40,12,10,.85);animation:vpulse 1s infinite}
+  @keyframes vpulse{50%{box-shadow:0 0 0 5px rgba(255,122,107,.18)}}
+
+  .depCard{width:min(300px,88vw);border:1px solid var(--line);border-radius:8px;padding:15px;margin:6px;
+    background:rgba(14,19,28,.92);text-align:left;position:relative;overflow:hidden}
+  .depCard .t{font-size:12.5px;letter-spacing:.18em;text-transform:uppercase}
+  .depCard .fx{font-size:11px;color:var(--dawn);margin-top:6px;letter-spacing:.06em}
+  .depCard .prog{position:absolute;left:0;bottom:0;height:3px;width:0%;background:var(--accent)}
+  .depCard.done{border-color:var(--go)}
+  .depCard.done .prog{width:100%;background:var(--go)}
+  #solStrip{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:12px 0 4px;
+    font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+  #solStrip b{color:var(--ink);font-weight:600}
+
+  #ch4{z-index:31;top:auto;bottom:0;left:0;right:0;height:auto;max-height:46vh;
+    justify-content:flex-start;padding:10px 12px calc(12px + env(safe-area-inset-bottom));gap:8px;
+    background:rgba(6,9,15,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);overflow-y:auto}
+  #ch4.min{max-height:52px;overflow:hidden}
+  #panelTog{position:absolute;top:6px;right:10px;border:1px solid var(--line);border-radius:5px;
+    padding:6px 12px;font-size:10px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;min-height:32px}
+  #timeCtl{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:32;display:none;
+    align-items:center;gap:6px;background:rgba(5,8,13,.72);border:1px solid rgba(42,51,66,.6);
+    border-radius:8px;padding:5px 8px}
+  #timeCtl button{width:44px;height:38px;border:1px solid var(--line);border-radius:5px;
+    color:var(--dim);font-size:12px;letter-spacing:.06em}
+  #timeCtl button.on{border-color:var(--accent);color:var(--ink)}
+  #solLab{font-size:10px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;padding:0 6px}
+  #crewRows{display:flex;flex-direction:column;gap:6px;width:100%}
+  .crewCard{border:1px solid var(--line);border-radius:8px;background:rgba(14,19,28,.92);padding:8px 10px}
+  .crewCard .top{display:flex;align-items:center;gap:9px}
+  .crewCard .dot{width:26px;height:26px;border-radius:50%;border:2px solid;display:flex;
+    align-items:center;justify-content:center;font-size:10px;font-weight:700}
+  .crewCard .nm{flex:1;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+  .crewCard .nm .doing{display:block;font-size:9.5px;color:var(--dawn);letter-spacing:.08em;margin-top:2px;text-transform:none}
+  .crewCard .en{width:74px}
+  .enBar{height:6px;border:1px solid var(--line);border-radius:4px;overflow:hidden;position:relative}
+  .enBar i{position:absolute;inset:0;background:var(--accent)}
+  .enBar.low i{background:var(--bad)}
+  .crewCard .chips{display:none;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .crewCard.open .chips{display:flex}
+  .crewCard .chips button{border:1px solid var(--line);border-radius:6px;padding:8px 9px;min-height:40px;
+    font-size:10px;letter-spacing:.08em;color:var(--dim);background:rgba(10,14,22,.8)}
+  .crewCard .chips button b{color:var(--go);font-weight:600;margin-left:4px}
+  .crewCard .chips button b.neg{color:var(--bad)}
+  .crewCard .chips button.sel{border-color:var(--accent);color:var(--ink)}
+  #ch4 .winhead{display:flex;justify-content:space-between;align-items:baseline;width:min(560px,94vw)}
+  #winLab{font-size:13px;letter-spacing:.3em;text-transform:uppercase}
+  #ch4Strip{font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;text-align:right}
+  #ch4Strip b{color:var(--ink)}
+  #allocRows{display:flex;flex-direction:column;gap:6px;width:min(560px,94vw)}
+  .alloc{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:7px;
+    padding:7px 10px;background:rgba(14,19,28,.9)}
+  .alloc.locked{opacity:.42}
+  .alloc .nm{flex:1;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase}
+  .alloc .hint{font-size:9.5px;color:var(--dim);letter-spacing:.05em;display:block;text-transform:none;margin-top:2px}
+  .alloc button{width:44px;height:44px;border:1px solid var(--line);border-radius:6px;color:var(--dim);font-size:18px}
+  .alloc button:active{border-color:var(--accent);color:var(--ink)}
+  .alloc .hv{width:52px;text-align:center;font-size:14px}
+  #hoursLeft{font-size:11px;letter-spacing:.2em;color:var(--dawn);text-transform:uppercase}
+  #projWrap{width:min(560px,94vw);border:1px dashed var(--line);border-radius:7px;padding:9px 12px;
+    font-size:11px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+  #projWrap .bar2{margin-top:6px}
+  #projPick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  #projPick button{border:1px solid var(--line);border-radius:6px;padding:9px 10px;font-size:10.5px;
+    color:var(--dim);letter-spacing:.06em;text-transform:none}
+  #projPick button:hover{color:var(--ink);border-color:var(--dim)}
+  #ledgerRows{width:min(560px,94vw);display:flex;flex-direction:column;gap:4px;margin-top:2px}
+  #ledgerRows .lhead{font-size:9.5px;letter-spacing:.3em;color:#525d6e;text-transform:uppercase;margin-bottom:2px}
+  .ledLine{display:flex;justify-content:space-between;font-size:11.5px;letter-spacing:.06em;
+    color:var(--dim);border-bottom:1px dotted rgba(42,51,66,.6);padding:4px 2px}
+  .ledLine b{color:var(--ink);font-weight:500}
+  .ledLine.retired{color:#3c4a44;text-decoration:line-through}
+  .ledLine.retired b{color:var(--go);text-decoration:none}
+  .ledLine.retired::after{content:' ✓';color:var(--go);text-decoration:none}
+  #reportCard{z-index:33}
+  #archive{z-index:36}
+  .archList{display:flex;flex-direction:column;gap:7px;width:min(560px,92vw)}
+  .archRow{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;background:rgba(14,19,28,.92);cursor:pointer;text-align:left;min-height:56px}
+  .archRow:hover{border-color:var(--dim)}
+  .archRow .num{font-size:13px;letter-spacing:.2em;color:var(--accent);min-width:38px}
+  .archRow .tt{flex:1}
+  .archRow .tt b{display:block;font-size:12.5px;letter-spacing:.14em;font-weight:500;text-transform:uppercase}
+  .archRow .tt span{display:block;font-size:10.5px;color:var(--dim);letter-spacing:.06em;margin-top:3px}
+  .archRow .op{font-size:9.5px;letter-spacing:.24em;color:var(--dim)}
+  #archive .hint{font-size:10px;color:#525d6e;letter-spacing:.1em;max-width:min(520px,88vw);
+    text-align:center;line-height:1.6;text-transform:uppercase}
+  #grade4{font-weight:200;font-size:clamp(40px,10vw,72px);color:var(--accent);letter-spacing:.1em}
+  #grade3{font-weight:200;font-size:clamp(40px,10vw,72px);color:var(--accent);letter-spacing:.1em}
+  #grade{font-weight:200;font-size:clamp(48px,12vw,96px);color:var(--accent);letter-spacing:.1em}
+  .repRows{display:flex;flex-direction:column;gap:6px;max-width:32em}
+  .repRows div{font-size:12px;color:var(--dim);letter-spacing:.05em;line-height:1.5}
+  .repRows div::before{content:'▸ ';color:var(--accent)}
+  #reportCard .hook{margin-top:8px;color:var(--dawn);font-size:11px;letter-spacing:.26em;text-transform:uppercase}
+
+  #sitePick{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));
+    transform:translateX(-50%);z-index:28;width:min(420px,92vw);display:none;
+    flex-direction:column;gap:6px;background:rgba(8,12,19,.94);border:1px solid var(--line);
+    border-radius:10px;padding:16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  #sitePick.on{display:flex}
+  #sitePick .spName{font-size:13px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink)}
+  #sitePick .spMeta{font-size:11px;letter-spacing:.1em;color:var(--dawn)}
+  #sitePick .spFlavor{font-size:12px;color:var(--dim);font-style:italic;line-height:1.5}
+  #sitePick .spBtns{display:flex;gap:8px;margin-top:8px}
+  #sitePick .spBtns button{flex:1;border:1px solid var(--line);border-radius:6px;padding:11px;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  #sitePick #spGo{border-color:var(--accent);color:var(--ink)}
+  #sitePick .spBtns button:hover{border-color:var(--dim);color:var(--ink)}
+  #settings{position:fixed;top:66px;right:16px;z-index:45;display:none;flex-direction:column;gap:12px;
+    background:rgba(10,14,22,.96);border:1px solid var(--line);border-radius:8px;padding:16px;width:230px}
+  #settings label{font-size:10px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+  #settings input[type=range]{width:100%;accent-color:var(--accent)}
+  #settings button{border:1px solid var(--line);border-radius:5px;padding:9px;font-size:11px;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  #settings button:hover{color:var(--ink);border-color:var(--dim)}
+
+  #skipBtn{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:38;display:none;
+    border:1px solid var(--line);border-radius:5px;padding:10px 16px;font-size:10px;letter-spacing:.26em;
+    color:var(--dim);text-transform:uppercase;background:rgba(10,14,22,.8)}
+  #skipBtn:hover{color:var(--ink);border-color:var(--dim)}
+
+  #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:46;
+    font-size:11px;letter-spacing:.16em;color:var(--dim);background:rgba(10,14,22,.9);border:1px solid var(--line);
+    border-radius:4px;padding:9px 14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:88vw;text-align:center}
+  #toast.show{opacity:1}
+
+  @media (prefers-reduced-motion: reduce){#flash,#fade,#menu,.bar{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="fade"></div>
+<div id="flash"></div>
+<div class="bar" id="barT"></div>
+<div class="bar" id="barB"></div>
+
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+
+<div id="boot">
+  <div class="mark">Eden</div>
+  <div class="status mono" id="bootStatus">Calibrating survey optics</div>
+</div>
+
+<div id="menu" class="hidden">
+  <div class="eyebrow"><span class="tick">●</span>&nbsp; First Light · The Complete Expedition</div>
+  <h1>Eden</h1>
+  <p class="sub">The Moon can pay its own way — if the first ten years go right.
+     Every industry up there exists to retire an import from down here.
+     From a launch pad on Earth to first music on the Moon.</p>
+  <nav>
+    <button class="primary" id="beginBtn">Begin descent</button>
+    <button data-na="1">Continue expedition</button>
+    <button id="archBtn">Crew archive</button>
+    <button id="sysBtn">Systems</button>
+  </nav>
+  <div class="vtag mono" id="vTag">SURVEY BUILD —</div>
+</div>
+
+<div id="hud" class="mono">
+  <div class="site" id="hudSite">—</div>
+  <div class="row">
+    <span id="hudDate">March 2031</span>
+    <span>BUDGET $<span id="hudBudget">2400</span>M<span class="delta" id="dBudget"></span></span>
+    <span>MASS <span id="hudMass">12000</span> KG<span class="delta" id="dMass"></span></span>
+  </div>
+  <div class="row">
+    <span>MORALE <span class="pip" id="hudMorale"></span><span class="delta" id="dMorale"></span></span>
+    <span>SUPPORT <span class="pip" id="hudSupport"></span><span class="delta" id="dSupport"></span></span>
+    <span>REL <span id="hudRel">0</span><span class="delta" id="dRel"></span></span>
+  </div>
+</div>
+
+<div id="objWrap">
+  <div id="objective" class="mono"><span id="objText">—</span> <span class="check">✓</span></div>
+  <button id="gear" aria-label="Settings">⚙</button>
+</div>
+
+<div id="missionClock" class="mono">T−00:03</div>
+<div id="slug" class="mono"></div>
+
+<div id="titleCard">
+  <div class="name" id="tcName"></div>
+  <div class="flavor mono" id="tcFlavor"></div>
+</div>
+
+<div id="dialog">
+  <div class="box">
+    <div class="head"><canvas id="portrait" width="80" height="80"></canvas>
+      <div class="name" id="spkName">FLIGHT</div></div>
+    <div class="text" id="dlgText"></div>
+    <div id="choices"></div>
+    <div class="hint" id="dlgHint">Tap to continue ▸</div>
+  </div>
+</div>
+
+<div id="subs">
+  <div id="subWho" class="mono">COMMANDER</div>
+  <div id="subText"></div>
+</div>
+
+<div class="screen" id="bgSelect">
+  <h2>Background file</h2>
+  <div class="lede">Who were you before the program? One answer. It follows you to the Moon.</div>
+  <div class="cards" id="bgCards"></div>
+</div>
+
+<div class="screen" id="planning">
+  <h2>Payload manifest</h2>
+  <div class="lede" id="planLede">Two module slots to trans-lunar injection.</div>
+  <div class="cards" id="modCards"></div>
+  <div class="bars">
+    <div class="barlab"><span>Mass to TLI</span><span id="massLab">0 / 12000 kg</span></div>
+    <div class="bar2" id="massBar"><i></i></div>
+    <div class="barlab"><span>Cost</span><span id="costLab">$0M</span></div>
+    <div class="bar2 cost" id="costBar"><i></i></div>
+  </div>
+  <div class="sidebtns">
+    <button id="geoBtn">⛏️ Re-run prospector mass model</button>
+    <button id="adminBtn">📋 Negotiate integration fees</button>
+  </div>
+  <button class="confirm" id="planConfirm" disabled>Lock manifest</button>
+</div>
+
+<div class="screen" id="gonogo">
+  <h2>Terminal count</h2>
+  <div class="lede">Poll your stations. All three go for launch.</div>
+  <div id="polls">
+    <button data-st="BOOSTER">BOOSTER <span class="st">POLL</span></button>
+    <button data-st="GUIDANCE">GUIDANCE <span class="st">POLL</span></button>
+    <button data-st="PAYLOAD">PAYLOAD <span class="st">POLL</span></button>
+  </div>
+  <div id="holdWrap">
+    <button id="holdBtn"><span class="ring"></span>Hold to ignite</button>
+    <div id="holdHint">Hold 3 seconds · release aborts</div>
+  </div>
+</div>
+
+<div class="screen" id="endCard">
+  <h2>Trans-Lunar Injection confirmed</h2>
+  <div class="lede">The first ten years start now.</div>
+  <div class="recap" id="recap"></div>
+  <div class="hook">Next — The Coast · Transit Day 2</div>
+  <div class="sidebtns">
+    <button class="confirm" id="chap2Btn">Continue → The Coast</button>
+  </div>
+</div>
+
+<div id="timeCtl" class="mono">
+  <button id="spd0">⏸</button><button id="spd1" class="on">1×</button>
+  <button id="spd2">4×</button><button id="spd3">16×</button>
+  <span id="solLab">SOL 40</span>
+</div>
+
+<div class="screen" id="archive">
+  <div class="eyebrow">Crew Archive · mission records</div>
+  <div class="archList" id="archList"></div>
+  <div class="hint">Opening a record forges the preceding history at random — site, crew, manifest, and deals are rolled for you.</div>
+  <div class="sidebtns"><button class="ghost" id="archClose">Close</button></div>
+</div>
+
+<div class="screen" id="ch4">
+  <button id="panelTog">Map ▾</button>
+  <div class="winhead"><div id="winLab" class="mono">WINDOW 1 / 8</div>
+    <div id="ch4Strip" class="mono">—</div></div>
+  <div id="crewRows"></div>
+  <div id="projWrap" class="mono">CONSTRUCTION — <span id="projName">no project</span>
+    <div class="bar2" id="projBar" style="display:none"><i></i></div>
+    <div id="projPick"></div></div>
+  <div id="ledgerRows"><div class="lhead">The Import Ledger · mass shipped per window</div></div>
+</div>
+
+<div class="screen" id="end4Card">
+  <div class="eyebrow">Year One report · Shackleton</div>
+  <div id="grade4">—</div>
+  <div class="repRows" id="end4Rows"></div>
+  <div class="hook">Next — Chapter Five: The Long Night</div>
+  <div class="sidebtns">
+    <button class="confirm" id="restartBtn5">Restart expedition</button>
+  </div>
+</div>
+
+<div class="screen" id="deployScreen">
+  <h2>Sol 1 — Deployment</h2>
+  <div class="lede">Two modules on the pallet. Tap each to bring Shackleton Base online.</div>
+  <div id="depCards" style="display:flex;flex-wrap:wrap;justify-content:center"></div>
+  <div id="solStrip" class="mono"></div>
+  <button class="confirm" id="depDone" disabled>File the Sol 1 report</button>
+</div>
+
+<div class="screen" id="reportCard">
+  <div class="eyebrow">Sol 1 report · Shackleton Base</div>
+  <div id="grade">—</div>
+  <div class="repRows" id="repRows"></div>
+  <div class="hook">Next — Chapter Three: First Ice</div>
+  <div class="sidebtns">
+    <button class="confirm" id="chap3Btn">Continue → First Ice</button>
+    <button class="ghost" id="againBtn">Fly the descent again</button>
+    <button class="ghost" id="restartBtn3">Restart expedition</button>
+  </div>
+</div>
+
+<div class="screen" id="end3Card">
+  <div class="eyebrow">Eden · Sol 2</div>
+  <h2>First Ice</h2>
+  <div id="grade3">—</div>
+  <div class="lede" id="end3Lede">The line home is closed. The shadowed floor is waiting.</div>
+  <div class="repRows" id="end3Rows"></div>
+  <div class="hook">Next — Chapter Four: The Import Ledger</div>
+  <div class="sidebtns">
+    <button class="confirm" id="chap4Btn">Continue → The Import Ledger</button>
+    <button class="ghost" id="again3Btn">Run the traverse again</button>
+    <button class="ghost" id="restartBtn4">Restart expedition</button>
+  </div>
+</div>
+
+<div id="ghud" class="mono">
+  <div class="grp"><span>ALT</span><span class="v" id="hAlt">—</span>
+    <span>V/S</span><span class="v" id="hVs">—</span></div>
+  <div class="grp"><span>H/S</span><span class="v" id="hHs">—</span>
+    <span>TILT</span><span class="v" id="hTilt">—</span></div>
+  <div class="grp" id="fuelWrap"><span>FUEL</span>
+    <div id="fuelBar"><i></i></div><span class="v" id="hFuel">100%</span></div>
+</div>
+<div id="limits" class="mono">TARGET · V/S &lt; 2.6 · H/S &lt; 1.6 · TILT &lt; 9°</div>
+
+<div id="padCtl">
+  <button class="rcs" id="rotL" aria-label="Rotate left">⟲</button>
+  <button id="thrust">Hold · Thrust</button>
+  <button class="rcs" id="rotR" aria-label="Rotate right">⟳</button>
+</div>
+<button id="ventBtn" class="mono">VENT ×<span id="ventN">3</span></button>
+
+<div id="sitePick">
+  <div class="spName" id="spName">—</div>
+  <div class="spMeta mono" id="spMeta">—</div>
+  <div class="spFlavor" id="spFlavor">—</div>
+  <div class="spBtns">
+    <button id="spGo">Launch from here</button>
+    <button id="spCancel">Keep looking</button>
+  </div>
+</div>
+
+<div id="settings">
+  <label>Volume</label>
+  <input type="range" id="volSlider" min="0" max="100" value="70">
+  <button id="muteBtn2">Mute</button>
+  <button id="voiceBtn">Voice: —</button>
+  <button id="restartBtn">Restart expedition</button>
+</div>
+
+<button id="skipBtn">Tap to skip ▸</button>
+<div id="toast" class="mono"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
