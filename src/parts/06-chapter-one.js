@@ -181,7 +181,7 @@ function go(name){
   LAUNCH:'LAUNCH_POLL',CHAPTER_END:'CHAPTER_END',COAST:'COAST',
   ARRIVE2:'ARRIVE2',GAME2:'GAME2',TOUCH2:'TOUCH2',DEPLOY2:'DEPLOY2',REPORT2:'REPORT2',
   CH3_CALL:'DEPLOY2',GAME3:'GAME2',ICE3:'TOUCH2',REPORT3:'REPORT2',
-  CH4:'PLANNING',CH4_END:'REPORT2'};
+  CH4:'PLANNING',CH4_END:'REPORT2',CH5:'COAST',CH5_END:'REPORT2'};
  if(AM.ctx&&mixMap[name])setMix(mixMap[name]);
  if(name==='SITE_SELECT')enterSiteSelect();
  if(name==='DESCENT')enterDescent();
@@ -200,6 +200,7 @@ function go(name){
  if(name==='REPORT3')openReport3();
  if(name==='CH4')enterCh4();
  if(name==='CH4_END')openReport4();
+ if(name==='CH5')enterCh5();
 }
 let pinGroup=null,pinSel=null;
 function enterSiteSelect(){
@@ -659,7 +660,8 @@ function resetGame(){
  NPCS.flight.radio=false;
  if(AM.ctx){setMix('MENU',2);setTempo(85);setDrone(0,2);setArp(.5,2);setAmb(0,1);setRumbleDrive(0);padToMinor();}
  ['hud','objWrap','dialog','ghud','padCtl'].forEach(id=>$(id).style.display='none');
- ['bgSelect','planning','gonogo','endCard','deployScreen','reportCard','titleCard','end3Card','ch4','end4Card','archive'].forEach(id=>$(id).style.display='none');
+ ['bgSelect','planning','gonogo','endCard','deployScreen','reportCard','titleCard','end3Card','ch4','end4Card','end5Card','n5hud','archive'].forEach(id=>$(id).style.display='none');
+ N5=null;
  $('missionClock').style.display='none';$('limits').style.display='none';
  $('ventBtn').style.display='none';$('skipBtn').style.display='none';
  tvHide();

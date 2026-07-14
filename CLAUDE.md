@@ -2,8 +2,10 @@
 
 Single-file HTML game (three.js + Web Audio, no build deps, no server) covering the
 first years of a lunar base: launch campaign management, a hand-flown landing, an
-ice traverse, and a real-time colony sim. Current: **SURVEY BUILD 0.11.0**, four
-chapters + interlude + chapter select. Next planned: **Chapter Five — The Long Night**.
+ice traverse, a real-time colony sim, and a first-lunar-night survival vignette.
+Current: **SURVEY BUILD 0.14.0**, five chapters + interlude + chapter select.
+Ch.5 is a first playable pass — candidates for deepening: live load-shedding
+controls, night EVAs, a proper astro()-driven night length.
 
 ## Working on this project
 
@@ -23,7 +25,7 @@ chapters + interlude + chapter select. Next planned: **Chapter Five — The Long
   so it runs network-free; it auto-skips when playwright isn't installed. **Look at
   the shots** after visual changes — the assertions only catch blank/errored scenes,
   not ugly ones.
-- Pure-block markers `/* @c4-start */ … @c4-end`, `@c4rt-*`, `@arch-*` fence
+- Pure-block markers `/* @c4-start */ … @c4-end`, `@c4rt-*`, `@c5-*`, `@arch-*` fence
   DOM-free logic (colony economics, astronomy/crew accrual, archive history roller).
   Tests extract code via these markers — keep them intact and keep those blocks pure
   (no DOM, RNG injected as a parameter).
@@ -48,7 +50,7 @@ chapters + interlude + chapter select. Next planned: **Chapter Five — The Long
 | 04-earth-launch.js | Earth textures, orbital cutscene, launch site, 2031 rocket (booster+upper groups), staging, world-space plume, launch-sky star shader |
 | 05-lunar-scene.js | Cabin + moon-window scenes, crew rigs, lunar terrain (`terrainH` gameplay profile at z=0; `terrainH3`/`wildH`/`CRATERS` 3D heightfield around it), horizon rings, lander, particle pools, `terraSun`/`terraAmb`/`earthBall` handles |
 | 06-chapter-one.js | Ch.1 management game, dialog engine, `go()` scene router + `mixMap`, settings, `resetGame()` |
-| 07-chapters-2-5.js | Cutscenes, Ch.2 lander, Ch.3 call + traverse, Ch.4 colony (astronomy, crew, econ), Crew Archive, frame loop, boot |
+| 07-chapters-2-5.js | Cutscenes, Ch.2 lander, Ch.3 call + traverse, Ch.4 colony (astronomy, crew, econ), Ch.5 long night (`C5`/`N5`), Crew Archive, frame loop, boot |
 
 One continuous `gameState` flows through every chapter; earlier choices surface as
 flags (`waivedAnomaly`, leader-call deals, payloads, background) consumed by later
@@ -58,6 +60,8 @@ chapters. Scene transitions go through `go(name)`; audio follows via `mixMap`.
 
 - Ch.2 lander: `GRAV/THRUST/ROT/BURN`, pad geometry `PAD_X/PAD_TOP/PAD_HALF`
 - Ch.3 traverse: `B3` object (drive/heater/drill economy), alarm thresholds in `updateRoverHud`
+- Ch.5 night: `C5` object (drains, leak/EVA/blackout numbers) in the `@c5-*` pure
+  block, pacing `SOL5_SEC=14`, beats in `N5_BEATS`
 - Ch.4 colony: `C4` object (rates, ledger masses, project costs), `CREWD` skills,
   shift length `4.1` in `accrueSol`, `SOL_SEC=10` (real seconds per sol at 1×),
   astronomy in `astro()` (synodic 29.5306 d, draconic 27.2122 d, rim horizon geometry)

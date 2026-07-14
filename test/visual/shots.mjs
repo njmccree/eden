@@ -29,6 +29,7 @@ const CHAPTERS = [
   {row: 2, name: 'ch2-arrival',     settle: 5000},
   {row: 3, name: 'ch3-call',        settle: 5000},
   {row: 4, name: 'ch4-colony',      settle: 4000, ready: '#dialog', dialogTo: '#ch4'},
+  {row: 5, name: 'ch5-long-night',  settle: 4000, ready: '#dialog', dialogTo: '#n5hud'},
 ];
 
 const errors = [];
@@ -131,8 +132,8 @@ try {
     await page.click('#archBtn');
     await page.waitForSelector('#archive', {state: 'visible'});
     const rows = await page.locator('.archRow').count();
-    console.log(`${rows === 5 ? 'ok  ' : 'FAIL'} archive rows: ${rows}`);
-    if (rows !== 5) errors.push(`expected 5 archive rows, got ${rows}`);
+    console.log(`${rows === 6 ? 'ok  ' : 'FAIL'} archive rows: ${rows}`);
+    if (rows !== 6) errors.push(`expected 6 archive rows, got ${rows}`);
     await shot(page, '03-crew-archive');
     await page.close();
   }

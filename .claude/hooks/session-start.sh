@@ -16,8 +16,9 @@ if ./build.sh >"$LOG" 2>&1 \
    && node test/parse-check.mjs >>"$LOG" 2>&1 \
    && node test/sim-ch3-traverse.mjs >>"$LOG" 2>&1 \
    && node test/sim-ch4-balance.mjs >>"$LOG" 2>&1 \
+   && node test/sim-ch5-night.mjs >>"$LOG" 2>&1 \
    && node test/sim-archive-fuzz.mjs >>"$LOG" 2>&1; then
-  echo "eden: $(head -1 "$LOG") — parse-check + 3 balance sims green"
+  echo "eden: $(head -1 "$LOG") — parse-check + 4 balance sims green"
 else
   echo "eden: STARTUP CHECKS FAILED — tree is not green, output follows:"
   cat "$LOG"

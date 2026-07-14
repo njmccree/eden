@@ -91,6 +91,13 @@
   #missionClock{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:20;display:none;
     font-size:22px;letter-spacing:.24em;color:var(--ink);text-shadow:0 0 18px rgba(140,220,205,.35)}
 
+  /* Ch.5 long-night gauges */
+  #n5hud{position:fixed;top:132px;left:50%;transform:translateX(-50%);z-index:20;display:none;gap:16px}
+  #n5hud .g{display:flex;flex-direction:column;gap:3px;align-items:center}
+  #n5hud .g span{font-size:9px;letter-spacing:.24em;color:var(--dim)}
+  #n5hud .bar{width:86px;height:5px;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  #n5hud .bar i{display:block;height:100%;width:100%;background:var(--go);transition:width .3s ease,background .3s}
+
   /* launch broadcast picture-in-picture (styling kin to the Ch.3 LIVE uplink) */
   #tv{position:fixed;top:calc(12px + env(safe-area-inset-top));right:12px;z-index:32;
     width:min(46vw,240px);display:none;pointer-events:none}
@@ -503,8 +510,25 @@
   <div class="repRows" id="end4Rows"></div>
   <div class="hook">Next — Chapter Five: The Long Night</div>
   <div class="sidebtns">
-    <button class="confirm" id="restartBtn5">Restart expedition</button>
+    <button class="confirm" id="chap5Btn">Enter the long night ▸</button>
+    <button class="ghost" id="restartBtn5">Restart expedition</button>
   </div>
+</div>
+
+<div class="screen" id="end5Card">
+  <div class="eyebrow">The Long Night · Chapter Five</div>
+  <div id="grade5">—</div>
+  <div class="repRows" id="end5Rows"></div>
+  <div class="hook">The expedition continues.</div>
+  <div class="sidebtns">
+    <button class="confirm" id="restartBtn6">Return to the title</button>
+  </div>
+</div>
+
+<div id="n5hud" class="mono">
+  <div class="g"><span>POWER</span><div class="bar"><i id="nBatt"></i></div></div>
+  <div class="g"><span>HEAT</span><div class="bar"><i id="nHeat"></i></div></div>
+  <div class="g"><span>CREW</span><div class="bar"><i id="nCrew"></i></div></div>
 </div>
 
 <div class="screen" id="deployScreen">

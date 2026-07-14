@@ -7,7 +7,7 @@ accurate polar sky. Built entirely with three.js r128 + Web Audio in one HTML fi
 ## Quick start
 
     ./build.sh            # -> dist/eden.html (open it, or serve dist/ for phone testing)
-    test/run-all.sh       # build + syntax/id audit + balance sims + headless screenshots
+    test/run-all.sh       # build + syntax/id audit + four balance sims + headless screenshots
     ./build.sh --bump     # bump SURVEY BUILD patch version, then build
 
 The screenshot stage needs playwright + its Chromium (`npm i -g playwright &&

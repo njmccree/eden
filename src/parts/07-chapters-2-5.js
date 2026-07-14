@@ -708,6 +708,41 @@ function frame(now){
   const ang=now*.00005;
   camera.position.set(PAD_X-4+Math.sin(ang)*52,PAD_TOP+18,Math.cos(ang)*52);
   camera.lookAt(PAD_X-4,PAD_TOP+3,0);
+ }else if(sc==='CH5'||sc==='CH5_END'){
+  if(N5&&!N5.done&&sc==='CH5'){
+   if($('dialog').style.display!=='block'){
+    const dts=dt/SOL5_SEC;
+    N5.T+=dts;c5Step(N5,N5.f,dts);
+    if(N5.beat<N5_BEATS.length&&N5.T>=N5_BEATS[N5.beat][0]){
+     const b=N5_BEATS[N5.beat++];showDialog(b[1]());
+    }
+   }
+   $('nBatt').style.width=Math.min(100,N5.batt)+'%';
+   $('nBatt').style.background=N5.batt<20?'var(--bad)':N5.batt<40?'var(--dawn)':'var(--go)';
+   $('nHeat').style.width=N5.heat+'%';
+   $('nHeat').style.background=N5.heat<C5.COLD_AT?'var(--bad)':'var(--go)';
+   $('nCrew').style.width=N5.crewC+'%';
+   $('nCrew').style.background=N5.crewC<30?'var(--bad)':N5.crewC<55?'var(--dawn)':'var(--go)';
+   $('missionClock').textContent='SOL '+Math.min(C5.SOLS,N5.T).toFixed(1)+'/'+C5.SOLS;
+   const failed=N5.heat<=0||N5.crewC<=0;
+   if(failed||N5.T>=C5.SOLS){
+    N5.done=true;completeObjective();
+    setTimeout(()=>openReport5(failed),failed?700:2000);
+   }
+   const sr=smooth(5.2,6,N5.T); /* dawn creeps up the rim */
+   if(hasTHREE&&sr>0){
+    terraSun.position.set(420,30+60*sr,140);
+    terraSun.intensity=.14+1.3*sr;
+    terraSun.color.setHSL(.08,.5,.4+.3*sr);
+    if(sunDisc){sunDisc.visible=sr>.55;sunDisc.position.copy(terraSun.position).setLength(2400);}
+   }
+  }
+  beacons.forEach((b,i)=>{
+   const on=(Math.sin(now*.004+i*2.1)+1)/2>.45;
+   b.material.color.setHex(on?0x7fe08f:0x123318);});
+  const ang5=now*.00004;
+  camera.position.set(PAD_X-2+Math.sin(ang5)*44,PAD_TOP+13,Math.cos(ang5)*44);
+  camera.lookAt(PAD_X-2,PAD_TOP+4,0);
  }else if(sc==='GAME3'||sc==='ICE3'||sc==='CRASH3'||sc==='REPORT3'){
   if(sc==='GAME3')roverUpdate(dt);
   stepPool(lDust,dt,-1.3);
@@ -1848,6 +1883,135 @@ $('restartBtn5').addEventListener('click',()=>{
  sfxClick();$('end4Card').style.display='none';resetGame();
 });
 
+/* ================= Chapter 5: The Long Night ================= */
+/* Six sols of full dark on stored power. Choices trade battery against the
+   crew; a blackout is a death spiral. First playable pass. */
+/* @c5-start */
+const C5={SOLS:6,BASE:10,HEAT_HI:6,HEAT_LO:2.5,HEAT_DECAY:12,COLD_AT:35,COLD_CREW:18,
+ LEAK:7,EVA_BATT:22,EVA_CREW:15,PATCH_CREW:12,GH_SAVE:3,ENG_SAVE:2,BLACKOUT:120,BLACK_CREW:45};
+function c5Step(st,f,dt){
+ let drain=C5.BASE+(f.heatLo?C5.HEAT_LO:C5.HEAT_HI);
+ if(f.shedGreen)drain-=C5.GH_SAVE;
+ if(f.engTrim)drain-=C5.ENG_SAVE;
+ if(f.leak)drain+=C5.LEAK;
+ st.batt=Math.max(0,st.batt-drain*dt);
+ if(st.batt>0)st.heat=Math.max(0,Math.min(100,st.heat+(f.heatLo?-C5.HEAT_DECAY:(100-st.heat)*.5)*dt));
+ else st.heat=Math.max(0,st.heat-C5.BLACKOUT*dt);
+ if(st.heat<C5.COLD_AT)st.crewC=Math.max(0,st.crewC-C5.COLD_CREW*dt);
+ if(st.batt<=0)st.crewC=Math.max(0,st.crewC-C5.BLACK_CREW*dt);
+ return st;
+}
+function c5Grade(st,failed){
+ if(failed)return 'D';
+ if(st.batt>=30&&st.crewC>=55)return 'A';
+ if(st.batt>=15)return 'B';
+ return 'C';
+}
+/* @c5-end */
+let N5=null;
+const SOL5_SEC=14;
+const N5_BEATS=[
+ [0.5,()=>[{s:'eng',t:"First call of the night, architect. Heaters at full keep everyone comfortable and eat six percent a sol. Rationed heat halves that — and the cold collects the difference from the crew.",
+  choices:[
+   {label:'"Full heat. We stay sharp."',tags:'−6%/sol · crew protected',fx:()=>{},
+    next:[{s:'eng',t:"Full heat it is. The battery had better respect the gesture."}]},
+   {label:'"Ration it. Blankets are free."',tags:'−2.5%/sol · cabin cools all night',
+    fx:()=>{N5.f.heatLo=true;},
+    next:[{s:'sci',t:"Logging cabin setpoint: sweater. The greenhouse will complain before we do."}]}
+  ]}]],
+ [1.5,()=>[{s:'sci',t:"The greenhouse loop is the biggest line left on the board. I can put it to sleep — the crop survives dormant, but we eat stores and morale eats itself.",
+  choices:[
+   {label:'"Keep it warm. We keep green."',tags:'no savings · crew steady',fx:()=>{},
+    next:[{s:'sci',t:"Thank you. Something has to stay alive out here besides the ledger."}]},
+   {label:'"Dormancy. Wake it at dawn."',tags:'−3%/sol · crew −8',
+    fx:()=>{N5.f.shedGreen=true;N5.crewC=Math.max(0,N5.crewC-8);},
+    next:[{s:'sci',t:"Going dark in bay two. If the basil dies, it dies a hero."}]},
+   {label:'(🔧) "Trim the bus instead — the converters idle hot."',req:'eng',showLocked:true,
+    tags:'−2%/sol · free',
+    fx:()=>{N5.f.engTrim=true;},
+    next:[{s:'eng',t:"Converter idle trimmed. That’s two percent a sol for the price of knowing where to look."}]}
+  ]}]],
+ [2.6,()=>[{s:'flight',t:"Eden, telemetry flags a micrometeorite strike on the radiator field. You're bleeding standby power through the damaged loop — seven percent a sol until it's isolated.",
+  choices:[
+   {label:'"Suit up. Patch it now."',tags:'crew −12 · leak stopped',
+    fx:()=>{N5.crewC=Math.max(0,N5.crewC-C5.PATCH_CREW);},
+    next:[{s:'cdr',t:"Cold work in the dark. Loop isolated — next strike buys its own EVA."}]},
+   {label:'"Nobody goes out in the dark. Let it bleed."',tags:'−7%/sol until dawn',
+    fx:()=>{N5.f.leak=true;},
+    next:[{s:'eng',t:"Logged. For the record: the battery votes we go outside."}]}
+  ]}]],
+ [4.0,()=>[{s:'cdr',t:"The rover's been parked at the pad since the traverse with charge still in its packs. A walk in the dark would bring back twenty-two percent — and cost whoever makes it."
+  ,choices:[
+   {label:'"Go get it. Rope lights out and back."',tags:'+22% power · crew −15',
+    fx:()=>{N5.batt=Math.min(130,N5.batt+C5.EVA_BATT);N5.crewC=Math.max(0,N5.crewC-C5.EVA_CREW);},
+    next:[{s:'cdr',t:"Packs pulled and racked. The rover can be mad at us in the morning."}]},
+   {label:'"Not worth the frostbite. It keeps its charge."',tags:'no change',fx:()=>{},
+    next:[{s:'eng',t:"Copy. The margin is what it is."}]}
+  ]}]]
+];
+function enterCh5(){
+ document.body.classList.remove('cine');
+ $('end4Card').style.display='none';
+ if(hasTHREE){
+  terraRoot.visible=true;cabinRoot.visible=false;siteRoot.visible=false;orbitRoot.visible=false;
+  scene.background=new THREE.Color(0x000104);
+  if(rover3)rover3.visible=false;
+  buildBase();baseGrp.visible=true;
+  terraSun.position.set(-420,50,-160);
+  terraSun.intensity=.22;terraSun.color.setHex(0x9fb8e8); /* earthshine only */
+  terraAmb.intensity=.85;terraAmb.color.setHex(0x24354e);
+  if(sunDisc)sunDisc.visible=false;
+ }
+ N5={T:0,batt:100,heat:100,crewC:100,f:{},beat:0,done:false};
+ if(gameState.payloads.includes('solar'))N5.batt+=8; /* deeper storage bank */
+ gameState.date='February 2032';
+ $('hud').style.display='none';$('ghud').style.display='none';
+ $('n5hud').style.display='flex';
+ $('missionClock').style.display='block';
+ setObjective('Survive to sunrise');
+ $('objWrap').style.display='flex';
+ setArp(.25,4);
+ const slug=$('slug');
+ slug.textContent='Sol 214 · The Long Night · Chapter Five';
+ slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
+ showDialog([
+  {s:'flight',t:"Eden, the terminator crossed your rim an hour ago. Next sunrise is six sols out. Everything you are tonight is stored in one battery bank — spend it like air."},
+  {s:'eng',t:"Baseline load is ten percent a sol before anyone feels warm. The night doesn't negotiate; it just subtracts."}
+ ]);
+}
+function openReport5(failed){
+ gameState.scene='CH5_END';
+ $('n5hud').style.display='none';$('missionClock').style.display='none';hideSub();
+ setMix('REPORT2',3);setArp(.5,4);if(!failed)padToMajor();
+ const grade=c5Grade(N5,failed);
+ $('grade5').textContent=grade;
+ $('grade5').style.color=grade==='A'?'var(--go)':grade==='B'?'var(--accent)':grade==='C'?'var(--dawn)':'var(--bad)';
+ const rows=[
+  failed?'The night won — Earth relief is on the pad before the crew wakes on their own.':
+   'Sunrise on schedule. The base answered the roll call with everything running.',
+  'Battery at dawn '+Math.round(N5.batt)+'% · cabin heat '+Math.round(N5.heat)+'% · crew '+Math.round(N5.crewC)+'%',
+  N5.f.leak?'The radiator leak bled all night. The Chief has opinions in writing.':
+   'Radiator field patched under headlamps — cold work, clean isolation.',
+  N5.f.shedGreen?'The greenhouse slept through the dark and woke with the sun.':
+   N5.f.engTrim?'Converter idle trim carried the greenhouse through in full leaf.':
+   'The greenhouse stayed warm and green the whole night through.',
+  grade==='A'?'Shackleton has now outlived its first full night with margin to spare.':
+   grade==='D'?'Chapter closed by daylight and someone else’s propellant.':
+   'The base made it. The margins have notes for next winter.'
+ ];
+ const rr=$('end5Rows');rr.innerHTML='';
+ rows.forEach(t=>{const d=document.createElement('div');d.textContent=t;rr.appendChild(d);});
+ gameState.flags.ch5Grade=grade;
+ gameState.log.push('First full night survived: grade '+grade+'.');
+ $('end5Card').style.display='flex';
+}
+$('chap5Btn').addEventListener('click',()=>{
+ sfxClick();$('end4Card').style.display='none';go('CH5');
+});
+$('restartBtn6').addEventListener('click',()=>{
+ sfxClick();$('end5Card').style.display='none';resetGame();
+});
+
 /* ================= Crew Archive: chapter select ================= */
 /* @arch-start */
 const ARCH_CALL={
@@ -1874,6 +2038,7 @@ function rollHistory(n,rnd){
    publicSupport:2+Math.floor(rnd()*3)};
  }
  if(n>=5)R.callFlags=pk(ARCH_CALL[R.site.country]||[{}]);
+ if(n>=6)R.ch4Grade=pk(['A','B','B','C']);
  return R;
 }
 /* @arch-end */
@@ -1882,7 +2047,8 @@ const ARCH_ROWS=[
  {n:2,go:'COAST',t:'The Coast',d:'Interlude \u2014 three days out, one harmonica'},
  {n:3,go:'ARRIVE2',t:'The Landing',d:'Lunar orbit to the Shackleton rim, by hand'},
  {n:4,go:'CH3_CALL',t:'First Ice',d:'The call home, then the traverse into the dark'},
- {n:5,go:'CH4',t:'The Import Ledger',d:'Year one \u2014 run the base, retire the lines'}
+ {n:5,go:'CH4',t:'The Import Ledger',d:'Year one \u2014 run the base, retire the lines'},
+ {n:6,go:'CH5',t:'The Long Night',d:'Six sols of dark, one battery'}
 ];
 function forgeHistory(n){
  const R=rollHistory(n);
@@ -1902,6 +2068,10 @@ function forgeHistory(n){
  if(n>=5){
   Object.assign(gs.flags,R.callFlags||{});
   gs.log.push('First ice core in cold stowage.');
+ }
+ if(n>=6){
+  gs.flags.ch4Grade=R.ch4Grade;gs.date='February 2032';
+  gs.log.push('Year one grade: '+R.ch4Grade+'.');
  }
  return R;
 }
