@@ -420,10 +420,64 @@ const POLL_LINES={
  BOOSTER:['flight',"Booster is go. Tanks pressed, engines chilled."],
  GUIDANCE:['flight',"Guidance is go. Star trackers locked."],
  PAYLOAD:['sci',"Payload is GO GO GO — sorry. Payload is go."]};
+/* ---------- launch broadcast: PiP live feed + reporters in the gaps ---------- */
+const TV_NET={'USA':'GNN 7','French Guiana':'ORBITE 24','Kazakhstan':'KTK COSMOS','Japan':'NHU SORA','China':'CGX 9'};
+const tv={on:false,pool:[],poolIdx:0,capT:0,ascIdx:0,hideT:null};
+const TV_ASCENT=[
+ [16.9,'ANCHOR',"Clean and loud — Eden One is right down the middle of the corridor."],
+ [30.8,'PAD',"The sound just got here. A crackle you feel in your ribs — downrange and climbing."],
+ [37.6,'ANCHOR',"Coming up on staging. The booster that did the heavy lifting is about to hand over and fall home."],
+ [50.5,'PAD',"There it is — the booster tumbling back bright against the sky, and the second stage burning steady."],
+ [61.6,'ANCHOR',"Next stop: trans-lunar injection. From here, the Moon does the catching."]
+];
+function tvShow(){
+ tv.on=true;tv.poolIdx=0;tv.capT=1.2;tv.ascIdx=0;
+ tv.pool=[
+  ['ANCHOR',"Live from "+siteChosen.name+": the pad is clear, the range is green, and half the planet has the same channel on."],
+  ['PAD',"You can feel it out here — nobody is checking the weather twice. This bird wants to fly."],
+  ['ANCHOR',"Three polls stand between Eden One and the Moon. Flight runs the board when the architect gives the word."],
+  ['PAD',"Cryo load complete. She's creaking and venting like a kettle — the engineers tell me that's a good sound."],
+  ['ANCHOR',"One ship, one program, and a ledger that only balances off-world. No pressure on the crew at all."],
+  ['PAD',"The crowd here is ten deep. Someone brought a harmonica."]
+ ];
+ $('tvNet').textContent=TV_NET[siteChosen.country]||'GNN 7';
+ $('tvCap').classList.remove('on');
+ $('tv').style.display='block';
+ document.body.classList.add('tvon');
+}
+function tvHide(){
+ tv.on=false;clearTimeout(tv.hideT);
+ $('tv').style.display='none';
+ document.body.classList.remove('tvon');
+}
+function tvCaption(who,text){
+ $('tvCap').innerHTML='<b>'+who+'</b>'+text;
+ $('tvCap').classList.add('on');
+ clearTimeout(tv.hideT);
+ tv.hideT=setTimeout(()=>$('tvCap').classList.remove('on'),Math.max(3800,text.length*48));
+}
+function tvUpdate(dt){
+ if(!tv.on)return;
+ const busy=$('subs').classList.contains('on')||$('dialog').style.display==='block';
+ if(launch.phase==='liftoff'){
+  if(tv.ascIdx<TV_ASCENT.length&&launch.t>=TV_ASCENT[tv.ascIdx][0]&&!busy){
+   const[,who,line]=TV_ASCENT[tv.ascIdx++];
+   tvCaption(who,line);
+  }
+ }else{
+  tv.capT-=dt;
+  if(tv.capT<=0&&!busy){
+   const[who,line]=tv.pool[tv.poolIdx++%tv.pool.length];
+   tvCaption(who,line);tv.capT=9;
+  }
+ }
+}
+
 function enterLaunch(){
  setObjective('Clear the terminal count');
  gameState.date='June 2031';updateHUD();
  launch={t:0,phase:'poll',holdT:0,holding:false,polls:{},anomalyDone:false};
+ tvShow();
  document.querySelectorAll('#polls button').forEach(b=>{
   b.classList.remove('go');b.querySelector('.st').textContent='POLL';});
  $('holdWrap').style.display='none';
@@ -532,6 +586,8 @@ function launchEvent(){
 function tliCallback(){
  shakeAmp=0;setRumbleDrive(0);
  $('missionClock').style.display='none';
+ tvCaption('ANCHOR',"Trans-lunar injection. Eden One is gone from the sky here — next landmark, the Moon.");
+ setTimeout(tvHide,2400);
  callout('flight',"Trans-lunar injection confirmed. Eden is on its way.");
  setStat('publicSupport',1);
  setTimeout(()=>{completeObjective();go('CHAPTER_END');},2600);
@@ -606,6 +662,7 @@ function resetGame(){
  ['bgSelect','planning','gonogo','endCard','deployScreen','reportCard','titleCard','end3Card','ch4','end4Card','archive'].forEach(id=>$(id).style.display='none');
  $('missionClock').style.display='none';$('limits').style.display='none';
  $('ventBtn').style.display='none';$('skipBtn').style.display='none';
+ tvHide();
  hideSub();document.body.classList.remove('cine','landing');
  clearPins();$('sitePick').classList.remove('on');
  if(rover3)rover3.visible=false;

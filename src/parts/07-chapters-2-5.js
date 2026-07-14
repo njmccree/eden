@@ -594,6 +594,7 @@ function frame(now){
   }
  }
  if(siteRoot&&siteRoot.visible){
+  if(sc==='LAUNCH')tvUpdate(dt);
   updateVapor(dt);
   if(plumeFlame){stepPool(plumeFlame,dt,6);stepPool(plumeSmoke,dt,.6);}
   updateBoosterFall(dt);
@@ -747,6 +748,29 @@ function frame(now){
  if(cabinRoot&&cabinRoot.visible)leds.forEach(m=>{
   const on=(Math.sin(now*.0012+m.userData.ph*3)+1)/2>.4;
   m.material.color.setHex(on?m.userData.base:0x22262b);});
+ if(tv.on&&siteRoot&&siteRoot.visible){
+  /* live broadcast: press-site camera rendered into a corner of the main
+     canvas, blitted to the PiP's 2D canvas, then overdrawn by the main pass
+     (one GL context — a second WebGLRenderer miscomposites on some stacks) */
+  const el=$('tvCanvas'),w=el.clientWidth,h=el.clientHeight;
+  if(w>4){
+   const pr=renderer.getPixelRatio(),tw=Math.floor(w*pr),th=Math.floor(h*pr);
+   if(el.width!==tw){el.width=tw;el.height=th;}
+   const ry=rocket?rocket.position.y:0;
+   tvCam.aspect=w/h;
+   tvCam.fov=lerpN(30,7,smooth(0,260,ry)); /* long lens tracks the climbout */
+   tvCam.updateProjectionMatrix();
+   tvCam.position.set(46,2.6,58);
+   tvCam.lookAt(Math.sin(now*.0013)*.6,ry+7+Math.sin(now*.0009)*.7,0); /* handheld sway */
+   renderer.setScissorTest(true);
+   renderer.setViewport(0,0,w,h);renderer.setScissor(0,0,w,h);
+   renderer.render(scene,tvCam);
+   renderer.setScissorTest(false);
+   renderer.setViewport(0,0,window.innerWidth,window.innerHeight);
+   el.getContext('2d').drawImage(renderer.domElement,
+    0,renderer.domElement.height-th,tw,th,0,0,tw,th);
+  }
+ }
  renderer.render(scene,camera);
 }
 /* ================= Chapter 3: the call home ================= */
