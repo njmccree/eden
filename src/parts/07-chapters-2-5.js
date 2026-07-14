@@ -1556,14 +1556,71 @@ function renderCh4(){
  $('ch4').style.display='flex';
  $('timeCtl').style.display='flex';
 }
+/* c4Preview: display-only mirror of econWindow() \u2014 estimates per-sol rates for the
+   current window from current assignments/energy/sun. NEVER writes S4. */
+function c4Preview(a){
+ const H={mine:0,green:0,elec:0,maint:0,sci:0,build:0};
+ for(const id in S4.assign){
+  const t=S4.assign[id];
+  if(t==='rest'||!(t in H))continue;
+  H[t]+=4.1*effOf(id,t)*(.6+S4.energy[id]/250)*30;
+ }
+ const morMul=1-Math.max(0,3-S4.morale)*.1;
+ const pwr=C4.PWR_BASE+(gameState.payloads.includes('solar')?C4.PWR_SOLAR*a.sf:0);
+ const demand=C4.LOAD+H.mine*C4.D_MINE+H.green*C4.D_GREEN+H.elec*C4.D_ELEC;
+ const pu=Math.min(1,pwr/Math.max(.1,demand));
+ let mined=(M4.rig+H.mine*M4.mine*morMul)*(1+(S4.sciDone>=1?.1:0))*pu;
+ if(S4.vein)mined*=1.15;
+ const foodU=Math.min(S4.foodCap,H.green*M4.green*morMul*pu);
+ const propMade=S4.built.elec?H.elec*M4.elec*morMul*pu:0;
+ const waterUse=C4.CREW_W*S4.crew+foodU*C4.GREEN_W+propMade*C4.ELEC_W;
+ const foodPct=Math.min(100,Math.round(foodU/C4.FOOD_NEED*100));
+ const cover=Math.min(1,mined/Math.max(1,waterUse));
+ const lines=(C4.W_KG*S4.crew/3*(1-cover))+(C4.F_KG*(1-foodPct/100))+
+  ((S4.prop+propMade>=260)?0:C4.P_KG)+(C4.S_KG*(S4.built.printer?.5:1));
+ const approp=(S4.appropCut?22:C4.APPROP)+S4.support*C4.APPROP_SUP+(S4.budgetBonus||0);
+ return {water:(mined-waterUse)/30,prop:propMade/30,foodPct,
+  pwr,surplus:pwr-demand,budget:(approp-lines*C4.KGM*(1-M4.disc))/30};
+}
+function setTile(id,val,max,rate,unit,dec){
+ const t=$(id);
+ t.querySelector('.rv').textContent=dec?val.toFixed(dec):''+Math.round(val);
+ t.querySelector('.rbar').firstElementChild.style.width=
+  Math.max(0,Math.min(100,val/max*100))+'%';
+ t.classList.toggle('low',val/max<.15);
+ const rr=t.querySelector('.rr');
+ if(rate===null){rr.textContent='';rr.className='rr';return;}
+ const flat=Math.abs(rate)<.05;
+ rr.textContent=(rate>=0?'+':'\u2212')+Math.abs(rate).toFixed(1)+unit;
+ rr.className='rr'+(flat?'':rate>0?' up':' dn');
+}
 function stripCh4(){
  const a=astro(S4.T);
- const pwrNow=Math.round(C4.PWR_BASE+(gameState.payloads.includes('solar')?C4.PWR_SOLAR*a.sf:0));
- $('ch4Strip').innerHTML='WATER <b>'+Math.round(S4.water)+'</b> \u00b7 PROP <b>'+Math.round(S4.prop)+
-  '</b> \u00b7 FOOD <b>'+S4.foodPct+'%</b> \u00b7 PWR <b>'+pwrNow+' kW</b>'+
-  (a.sf<.35&&gameState.payloads.includes('solar')?' \u26a0':'');
- $('solLab').textContent='SOL '+Math.floor(40+S4.T)+' \u00b7 W'+S4.w+' \u00b7 RESUPPLY '+
-  Math.max(0,Math.ceil(S4.w*30-S4.T))+' SOLS';
+ const P=c4Preview(a);
+ const sols=Math.max(0,Math.min(30,S4.T-(S4.w-1)*30));
+ setTile('tWater',Math.max(0,S4.water+P.water*sols),800,P.water,'/sol');
+ setTile('tProp',Math.max(0,S4.prop+P.prop*sols),300,P.prop,'/sol');
+ setTile('tFood',S4.foodPct+(P.foodPct-S4.foodPct)*sols/30,100,(P.foodPct-S4.foodPct)/30,'%/sol');
+ setTile('tPwr',P.pwr,15,P.surplus,' kW',1);
+ setTile('tBudget',S4.budget+P.budget*sols,2400,P.budget,'/sol');
+ const solTxt='SOL '+Math.floor(40+S4.T),
+  resTxt='RESUPPLY '+Math.max(0,Math.ceil(S4.w*30-S4.T))+' SOLS';
+ $('ch4Sol').textContent=solTxt+' \u00b7 '+resTxt+
+  (a.sf<.35&&gameState.payloads.includes('solar')?' \u00b7 \u26a0 SHADOW':'');
+ $('solLab').textContent=solTxt+' \u00b7 W'+S4.w+' \u00b7 '+resTxt;
+}
+/* reconcile tiles to landed actuals after econWindow; d = realized window deltas */
+function reconcileTiles(d){
+ stripCh4();
+ [['tWater',d.water,' kg'],['tProp',d.prop,' kg'],['tFood',d.food,'%'],
+  ['tPwr',null,''],['tBudget',d.budget,'']].forEach(([id,dv,u])=>{
+  const t=$(id);
+  if(dv!==null){/* tPwr keeps its live surplus readout */
+   const rr=t.querySelector('.rr');
+   rr.textContent=(dv>=0?'+':'\u2212')+Math.abs(Math.round(dv))+u;
+   rr.className='rr'+(Math.abs(dv)<.5?'':dv>0?' up':' dn');}
+  t.classList.remove('pulse');void t.offsetWidth;t.classList.add('pulse');
+ });
 }
 [0,1,2,3].forEach(i=>{
  $('spd'+i).addEventListener('click',()=>{
@@ -1630,8 +1687,10 @@ function resolveBoundary(){
  const A={mine:0,green:0,elec:0,maint:0,sci:0,build:0};
  for(const k in A)A[k]=Math.round(S4.A[k]||0);
  S4.A={};
+ const w0=S4.water,p0=S4.prop,f0=S4.foodPct,b0=S4.budget;
  const R=econWindow(S4,A,M4,Math.random);
  S4.lastR=R;
+ reconcileTiles({water:S4.water-w0,prop:S4.prop-p0,food:S4.foodPct-f0,budget:S4.budget-b0});
  gameState.date=['September 2031','October 2031','November 2031','December 2031',
   'January 2032','February 2032','March 2032','April 2032'][Math.min(7,S4.w-2)];
  renderCh4Hud();
@@ -1664,6 +1723,7 @@ function enterCh4(){
   buildBase();
  }
  $('hud').style.display='flex';updateHUD();
+ $('hudMass').parentElement.style.display='none';
  S4={w:1,crew:3,T:0,pwrInt:0,solFrac:0,_halfsol:-1,A:{},lastR:null,
   assign:{cdr:'mine',eng:'build',sci:'sci'},
   energy:{cdr:100,eng:100,sci:100,esa:100},
@@ -1855,6 +1915,7 @@ function renderBase(){
 function openReport4(suspended){
  gameState.scene='CH4_END';
  $('ch4').style.display='none';$('timeCtl').style.display='none';hideSub();
+ $('hudMass').parentElement.style.display='';
  setMix('REPORT2',3);setArp(.5,4);padToMajor();
  const ret=Object.keys(S4.retired).length;
  const grade=suspended?'D':

@@ -661,6 +661,7 @@ function resetGame(){
  if(AM.ctx){setMix('MENU',2);setTempo(85);setDrone(0,2);setArp(.5,2);setAmb(0,1);setRumbleDrive(0);padToMinor();}
  ['hud','objWrap','dialog','ghud','padCtl'].forEach(id=>$(id).style.display='none');
  ['bgSelect','planning','gonogo','endCard','deployScreen','reportCard','titleCard','end3Card','ch4','end4Card','end5Card','n5hud','archive'].forEach(id=>$(id).style.display='none');
+ $('hudMass').parentElement.style.display='';
  N5=null;
  $('missionClock').style.display='none';$('limits').style.display='none';
  $('ventBtn').style.display='none';$('skipBtn').style.display='none';
