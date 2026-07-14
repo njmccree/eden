@@ -46,6 +46,16 @@ function startAudio(){
  AM.layers={};
  ['pad','tension','pulse','melody','rumble'].forEach(n=>{
   const g=ctx.createGain();g.gain.value=0;g.connect(comp);AM.layers[n]=g;});
+ /* premiere arps (Ch.3 live broadcast): own bus so the mix can't bury or boost it */
+ AM.premG=ctx.createGain();AM.premG.gain.value=0;AM.premG.connect(comp);
+ AM.premLevel=0;
+ AM.premDly=ctx.createDelay(2);AM.premDly.delayTime.value=(60/85/2)*1.5;
+ const plp=ctx.createBiquadFilter();plp.type='lowpass';plp.frequency.value=3200;
+ const pfb=ctx.createGain();pfb.gain.value=.34;
+ AM.premIn=ctx.createGain();AM.premIn.gain.value=1;
+ AM.premIn.connect(AM.premG);
+ AM.premIn.connect(AM.premDly);AM.premDly.connect(plp);plp.connect(pfb);pfb.connect(AM.premDly);
+ const pwet=ctx.createGain();pwet.gain.value=.5;plp.connect(pwet);pwet.connect(AM.premG);
  AM.sfxG=ctx.createGain();AM.sfxG.gain.value=.9;AM.sfxG.connect(comp);
  AM.voiceG=ctx.createGain();AM.voiceG.gain.value=.9;AM.voiceG.connect(comp);
  AM.ambG=ctx.createGain();AM.ambG.gain.value=0;AM.ambG.connect(comp);
@@ -162,6 +172,7 @@ function schedTransport(){
    if(AM.step%2===0)pulseTick(w,AM.step%8===0);
    if(Math.random()<.14)melodyPluck(w);
    alarmTick(AM.step,w);
+   premiereTick(AM.step,w);
   }
   AM.step++;
  }
@@ -272,6 +283,48 @@ function alarmTiltPing(when,accent){
   const og=ctx.createGain();og.gain.value=vol;
   o.connect(og);og.connect(g);o.start(when);o.stop(when+.25);});
 }
+/* --- Ch.3 premiere arps: motif-built figures that thicken with darkness+drilling.
+   Level ramps density (sparse motif tones -> full up/down figure -> off-beat 16ths),
+   cutoff and velocity open with it. Peak bus gain stays under callouts/alarms. --- */
+function setPremiereArp(v){
+ if(!AM.ctx)return;
+ v=Math.max(0,Math.min(1,v||0));
+ if(v===AM.premLevel||(v!==0&&Math.abs(v-AM.premLevel)<.002))return; /* skip per-frame no-op reschedules */
+ AM.premLevel=v;
+ AM.premG.gain.setTargetAtTime(v*.35,AM.ctx.currentTime,.25);
+}
+function premiereTick(step,when){
+ const lv=AM.premLevel;
+ if(!lv||gameState.scene!=='GAME3')return;
+ const every=lv<.3?4:lv<.6?2:1;
+ if(step%every!==0)return;
+ premNote(premMidi(step,lv),when,lv);
+ if(lv>=.6)premNote(premMidi(step+1,lv)+12,when+AM.E8*.5,lv*.65); /* off-beat 16th */
+}
+function premMidi(step,lv){
+ const M=AM.motif,cyc=step%12;
+ /* rise through the motif twice (root + octave), mirror back down */
+ const i=cyc<6?cyc:11-cyc;
+ let midi=M[i%M.length]+12*(1+Math.floor(i/M.length));
+ if(lv>.5&&cyc%3===2)midi=AM.PENT[(Math.floor(step/3)*2)%AM.PENT.length]+12; /* pent passing tone */
+ return midi;
+}
+function premNote(midi,when,lv){
+ const ctx=AM.ctx,f=mtof(midi),dur=AM.E8*.95;
+ const vel=.22+.4*lv;
+ const flt=ctx.createBiquadFilter();flt.type='lowpass';flt.Q.value=1.1;
+ flt.frequency.setValueAtTime(Math.max(200,f*1.2),when);
+ flt.frequency.linearRampToValueAtTime(Math.min(9000,f*(2.5+5*lv)),when+.02);
+ flt.frequency.exponentialRampToValueAtTime(Math.max(220,f*1.5),when+dur);
+ const g=ctx.createGain();
+ g.gain.setValueAtTime(0,when);
+ g.gain.linearRampToValueAtTime(vel,when+.012);
+ g.gain.exponentialRampToValueAtTime(.0008,when+dur);
+ flt.connect(g);g.connect(AM.premIn);
+ [0,6].forEach(det=>{
+  const o=ctx.createOscillator();o.type='triangle';o.frequency.value=f;o.detune.value=det;
+  o.connect(flt);o.start(when);o.stop(when+dur+.05);});
+}
 function setAlarmLevels(vs,hs,tilt){
  if(!AM.ctx||!AM.alarm)return;
  const t=AM.ctx.currentTime;
@@ -300,6 +353,7 @@ function setTempo(bpm){
  if(!AM.ctx)return;
  AM.t0=AM.ctx.currentTime+.12;AM.step=0; /* restart the sequence at the new tempo */
  if(AM.dly)AM.dly.delayTime.setTargetAtTime(AM.E8*1.5,AM.ctx.currentTime,.05);
+ if(AM.premDly)AM.premDly.delayTime.setTargetAtTime(AM.E8*1.5,AM.ctx.currentTime,.05);
 }
 function setAmb(v,t){if(AM.ctx)AM.ambG.gain.linearRampToValueAtTime(v,AM.ctx.currentTime+(t||2));}
 function warmDrone(v){if(AM.ctx)AM.droneLP.frequency.linearRampToValueAtTime(v||900,AM.ctx.currentTime+4);}

@@ -1141,7 +1141,8 @@ function setGhudMode(mode){
   grps[1].innerHTML='<span>DIST</span><span class="v" id="hHs">\u2014</span>'+
    '<span>SLOPE</span><span class="v" id="hTilt">\u2014</span>';
   grps[2].innerHTML='<span>BATT</span><div id="fuelBar"><i></i></div><span class="v" id="hFuel">100%</span>';
-  $('limits').textContent='KEEP TEMP ABOVE \u221260\u00b0C \u00b7 WATCH THE BATTERY';
+  $('limits').textContent='KEEP TEMP ABOVE \u221260\u00b0C \u00b7 WATCH THE BATTERY'+
+   (gameState.flags.icePremiere?' \u00b7 CROWD BOOST \u00b7 BIT +20%':'');
  }else{
   grps[0].innerHTML='<span>ALT</span><span class="v" id="hAlt">\u2014</span>'+
    '<span>V/S</span><span class="v" id="hVs">\u2014</span>';
@@ -1194,6 +1195,9 @@ function resetTraverse(){
  R3.heaterDraw=gameState.background==='eng'?B3.HEAT*.8:B3.HEAT;
  R3.drillRate=gameState.background==='geo'?B3.RATE*1.25:B3.RATE;
  R3.heatLim=gameState.flags.jointAssay?B3.LIM*1.15:B3.LIM;
+ if(gameState.flags.icePremiere)R3.heatLim*=1.2; /* crowd boost: bit runs hot for the cameras */
+ R3.coolDur=gameState.flags.icePremiere?3*.85:3;
+ R3.prem=0;setPremiereArp(0);
  R3.maxV=gameState.flags.roverPartner?B3.MAXV*1.2:B3.MAXV;
  rover3.visible=true;drillRig.visible=true;
  rover3.position.set(R3.x,terrainH(R3.x)+.75,0);
@@ -1211,6 +1215,26 @@ function enterGame3(){
  }
  $('skipBtn').style.display='none';
  setGhudMode('rover');
+ if(gameState.flags.icePremiere){
+  tvShow({mode:'trav',net:'GNN 7',
+   sceneOk:()=>terraRoot&&terraRoot.visible,
+   camFn:(cam,now)=>{ /* chase cam: low, behind, handheld sway */
+    const gx=R3.x,gy=terrainH(R3.x);
+    cam.fov=34;
+    cam.position.set(gx-10,gy+6+Math.sin(now*.0011)*.4,18);
+    cam.lookAt(gx+Math.sin(now*.0007)*.8,gy+1.6,0);
+   },
+   pool:[
+    ['ANCHOR',"Live from the Moon: one rover, one drill, and the oldest ice in the solar system waiting at the bottom of a shadow."],
+    ['PAD',"The ratings desk says half the planet has this channel on. No pressure on the driver at all."],
+    ['ANCHOR',"The floor ahead hasn't seen the Sun in four billion years. The commander is driving into it on battery and nerve."],
+    ['PAD',"Mission audio says heaters trade warmth for charge. Down here we call that a thermostat argument."],
+    ['ANCHOR',"Watch the distance readout — every meter down that slope is colder than the last."],
+    ['PAD',"Somebody in the crowd started a countdown at two hundred meters out. It's catching on."],
+    ['ANCHOR',"Half the species leaning in to watch a drill bit spin, live, in the dark. What a time."],
+    ['PAD',"The engineers keep saying 'let the bit breathe.' The crowd keeps chanting 'send it.'"]
+   ]});
+ }else tvHide();
  $('ghud').style.display='flex';$('limits').style.display='block';
  $('padCtl').style.display='flex';
  setObjective('First ice: reach the shadowed floor and drill');
@@ -1228,7 +1252,7 @@ function enterGame3(){
 }
 function fail3(kind){
  gameState.scene='CRASH3';
- setAlarmLevels(0,0,0);setRumbleDrive(0);
+ setAlarmLevels(0,0,0);setRumbleDrive(0);setPremiereArp(0);tvHide();
  $('padCtl').style.display='none';
  const line=kind==='batt'?
   ['flight',"Eden, your power bus just flatlined. Recovery team has the rover \u2014 recharge and go again."]:
@@ -1288,7 +1312,7 @@ function roverUpdate(dt){
    R3.heat+=B3.HEATUP*dt;drain+=B3.DRILL;
    R3.core=Math.min(100,R3.core+R3.drillRate*dt);
    setRumbleDrive(.5);shakeAmp=.1;
-   if(R3.heat>=R3.heatLim){R3.cool=3;R3.overheats++;sfxKlaxon();
+   if(R3.heat>=R3.heatLim){R3.cool=R3.coolDur;R3.overheats++;sfxKlaxon();
     callout('eng',"Bit's glowing! Let it breathe.");}
   }else{R3.heat=Math.max(0,R3.heat-B3.COOL*dt);setRumbleDrive(0);shakeAmp=0;}
   drillRig.userData.lamp.material.color.setHex(drilling?0xffc06a:0x6fd8c8);
@@ -1296,6 +1320,14 @@ function roverUpdate(dt){
   if(R3.core>=50)milestone3('half',()=>callout('sci',"Half a meter. The cuttings are SHINING."));
  }else{setRumbleDrive(Math.min(.25,Math.abs(R3.v)*.05));shakeAmp=Math.abs(R3.v)*.012;}
  R3.batt=Math.max(0,R3.batt-drain*dt);
+ /* premiere arpeggios: darkness x drill activity, smoothed */
+ if(gameState.flags.icePremiere){
+  const digging=R3.mode==='drill'&&G2.inThrust&&R3.cool<=0&&R3.core<100;
+  const premT=dark*(digging?1:.5);
+  R3.prem+=(premT-R3.prem)*Math.min(1,dt*1.2);
+  if(!premT&&R3.prem<.02)R3.prem=0;
+  setPremiereArp(R3.prem);
+ }
  /* milestones */
  if(R3.x<20)milestone3('roll',()=>callout('flight',"Traverse is go. The floor never answers, Eden \u2014 don't take it personally.",true));
  if(dark>.5)milestone3('dark',()=>callout('cdr',"Light switch. Whole world just went out."));
@@ -1327,7 +1359,8 @@ function updateRoverHud(){
 }
 function iceExtraction(){
  gameState.scene='ICE3';setMix('TOUCH2',2);
- setAlarmLevels(0,0,0);setRumbleDrive(0);shakeAmp=.1;
+ setAlarmLevels(0,0,0);setRumbleDrive(0);setPremiereArp(0);shakeAmp=.1;
+ tvHide();
  sfxThud();
  for(let i=0;i<40;i++)
   emitP(lDust,DRILL_X+(Math.random()-.5)*3,terrainH(DRILL_X)+.5,(Math.random()-.5)*3,
@@ -1356,6 +1389,7 @@ function skipExtraction(){
  go('REPORT3');
 }
 function openReport3(){
+ tvHide();setPremiereArp(0);
  hideSub();document.body.classList.remove('cine');
  $('skipBtn').style.display='none';
  setArp(.5,4);
