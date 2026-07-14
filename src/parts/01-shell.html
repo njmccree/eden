@@ -88,6 +88,17 @@
     display:flex;align-items:center;justify-content:center;font-size:16px;pointer-events:auto}
   #gear:hover{color:var(--ink);border-color:var(--dim)}
 
+  /* Ch.4 (body.ch4): on phones the centered #timeCtl bar owns the top edge —
+     drop the side HUDs below it, settings below the relocated gear, and cap
+     widths so the objective can't overprint the hud row */
+  @media (max-width:700px){
+    body.ch4 #hud,body.ch4 #objWrap{top:calc(66px + env(safe-area-inset-top))}
+    body.ch4 #settings{top:calc(118px + env(safe-area-inset-top))}
+  }
+  body.ch4 #hud{max-width:40vw}
+  body.ch4 #objective{max-width:36vw}
+  @media (max-width:374px){body.ch4 #objective{max-width:32vw}}
+
   #missionClock{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:20;display:none;
     font-size:22px;letter-spacing:.24em;color:var(--ink);text-shadow:0 0 18px rgba(140,220,205,.35)}
 

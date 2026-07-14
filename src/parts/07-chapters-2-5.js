@@ -1714,6 +1714,7 @@ function resolveBoundary(){
 }
 function enterCh4(){
  document.body.classList.remove('cine');
+ document.body.classList.add('ch4');
  $('skipBtn').style.display='none';
  $('end3Card').style.display='none';
  if(hasTHREE){
@@ -1914,6 +1915,7 @@ function renderBase(){
 }
 function openReport4(suspended){
  gameState.scene='CH4_END';
+ document.body.classList.remove('ch4');
  $('ch4').style.display='none';$('timeCtl').style.display='none';hideSub();
  $('hudMass').parentElement.style.display='';
  setMix('REPORT2',3);setArp(.5,4);padToMajor();

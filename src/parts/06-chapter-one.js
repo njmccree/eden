@@ -666,7 +666,7 @@ function resetGame(){
  $('missionClock').style.display='none';$('limits').style.display='none';
  $('ventBtn').style.display='none';$('skipBtn').style.display='none';
  tvHide();
- hideSub();document.body.classList.remove('cine','landing');
+ hideSub();document.body.classList.remove('cine','landing','ch4');
  clearPins();$('sitePick').classList.remove('on');
  if(rover3)rover3.visible=false;
  if(baseGrp)baseGrp.visible=false;
