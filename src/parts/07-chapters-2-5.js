@@ -1295,6 +1295,7 @@ function skipExtraction(){
 }
 function openReport3(){
  hideSub();document.body.classList.remove('cine');
+ $('skipBtn').style.display='none';
  setArp(.5,4);
  const pct=R3.batt/R3.batt0*100;
  const grade=(R3.attempts===1&&R3.overheats===0&&pct>=25)?'A':
@@ -1654,6 +1655,7 @@ function resolveBoundary(){
 }
 function enterCh4(){
  document.body.classList.remove('cine');
+ $('skipBtn').style.display='none';
  $('end3Card').style.display='none';
  if(hasTHREE){
   terraRoot.visible=true;cabinRoot.visible=false;
