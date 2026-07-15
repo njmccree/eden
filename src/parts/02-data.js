@@ -107,6 +107,9 @@ function anomalyOutcome(gs){
 }
 /* @pure-end */
 
+/* Ch.6 geopolitics: each launching country's designated rival */
+const RIVALS={'USA':'China','China':'USA','Japan':'China','Kazakhstan':'USA','French Guiana':'Kazakhstan'};
+
 let gameState=newGameState();
 
 /* one speaker table for portraits, subtitles, and voices */
