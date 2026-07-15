@@ -517,10 +517,11 @@ $('skipBtn').addEventListener('click',e=>{
  else if(sc==='LAUNCH'&&launch.phase==='liftoff'){
   launch.tlIdx=launch.timeline.length;cancelVoice();
   stageSeparation(true);tliCallback();}
- else if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'){SCN.abort=true;cancelVoice();if(SCN.tapFn)SCN.tapFn();}
+ else if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'||sc==='CH6_CALL'){SCN.abort=true;cancelVoice();if(SCN.tapFn)SCN.tapFn();}
  else if(sc==='TOUCH2')skipTouchdown();
  else if(sc==='ICE3')skipExtraction();
  else if(sc==='DOCTV')leaveDocTv();
+ else if(sc==='CH6TV')leaveCh6Tv();
 });
 document.body.addEventListener('click',()=>{
  if(SCN.running&&SCN.tapFn)SCN.tapFn();
@@ -609,7 +610,7 @@ function frame(now){
    camBase.set(Math.sin(ang)*33,9.5,Math.cos(ang)*33);
    camLook.set(0,7,0);
   }
-  if((sc==='LAUNCH'||sc==='DOCTV')&&launch.phase==='liftoff'){
+  if((sc==='LAUNCH'||sc==='DOCTV'||sc==='CH6TV')&&launch.phase==='liftoff'){
    launch.t+=dt;
    while(launch.tlIdx<launch.timeline.length&&launch.t>=launch.timeline[launch.tlIdx][0]){
     launch.timeline[launch.tlIdx][1]();launch.tlIdx++;}
@@ -634,7 +635,7 @@ function frame(now){
    camLook.set(0,rocket.position.y+6,0);
   }
  }
- if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'){
+ if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'||sc==='CH6_CALL'){
   const speaker=VOICE.active;
   let speakerHead=null;
   if(speaker&&crew[speaker]){crew[speaker].headPivot.getWorldPosition(tmpV);speakerHead=tmpV.clone();}
@@ -2307,6 +2308,191 @@ $('chap5Btn').addEventListener('click',()=>{
 });
 $('restartBtn6').addEventListener('click',()=>{
  sfxClick();$('end5Card').style.display='none';resetGame();
+});
+
+/* ================= Chapter 6: The Line on the Map ================= */
+/* Evening news in the hab -> the rival country's crewed stack goes up live on
+   the home network -> the head of state calls for counsel: peace, or war.
+   Crew support (0-5) sets the odds the capital follows the crew's input;
+   otherwise a coin decides. Ends by staking the claim in GAME6. */
+/* @c6d-start */
+function ch6Decide(wantWar,support,rnd){const infl=rnd()<support*.2;const war=infl?wantWar:rnd()<.5;return{war,influenced:infl};}
+/* @c6d-end */
+function ch6Rival(){return gameState.flags.rival||RIVALS[gameState.site.country]||'China';}
+function ch6RivalSite(){return SITES.find(s=>s.country===ch6Rival())||SITES[0];}
+function ch6HabView(){ /* the cabin rig as the surface hab, night on the rim */
+ if(!hasTHREE)return;
+ terraRoot.visible=false;siteRoot.visible=false;orbitRoot.visible=false;
+ cabinRoot.visible=true;scene.fog=null;
+ scene.background=new THREE.Color(0x000104);
+ moonMesh.visible=false;
+ cabinEarth.visible=false;cabinClouds.visible=false; /* dark starfield window */
+ if(rover3)rover3.visible=false;
+ crewLookDefault=new THREE.Vector3(0,.45,-3.2); /* everyone faces the screen */
+}
+function ch6NewsBeats(){
+ const net=TV_NET[gameState.site.country]||'GNN 7';
+ const rival=ch6Rival(),rSite=ch6RivalSite();
+ return [
+  {shot:'wide',dur:3800,pre:()=>sfxRadio(),
+   cap:'(dinner hour \u2014 the '+net+' evening feed runs on the comms wall, one-point-three seconds stale)'},
+  {shot:'screen',who:'anchor',t:"\u2014 and the harvest numbers are in: the first tomato grown at Shackleton weighed forty-one grams and was, quote, \u2018shared unevenly.\u2019 "+net+" will be pursuing that story."},
+  {shot:'eng',who:'eng',t:"It was shared by mass. I did the math. The math was fair."},
+  {shot:'screen',who:'anchor',t:"Back home tonight: coastal weather, a ferry christened after a poet, and \u2014 we are told \u2014 a slow news day. From all of us at "+net+", we like those."},
+  {shot:'twoshot',dur:3400,cap:'(the crew half-watches \u2014 the way you watch home when home is the far bright thing in the window)'},
+  {shot:'screen',dur:2400,pre:()=>sfxRadio(true),cap:'\u2014 BREAKING \u2014'},
+  {shot:'screen',who:'anchor',t:"We are interrupting this broadcast. "+net+" is receiving live pictures from "+rSite.name+" \u2014 a crewed stack, on the pad, in the final minute of a count nobody announced. Our team is the only home camera on site. Going live now."},
+  {shot:'cdr',who:'cdr',t:"...That's "+rival+"'s heavy pad. Turn it up."}
+ ];
+}
+function enterCh6Call(){
+ const home=gameState.site.country;
+ const HL=LEADERS[home]||LEADERS['USA'];
+ Object.assign(NPCS.leader,{name:HL.name,color:HL.color,blipF:HL.blipF,pitch:HL.pitch,rate:HL.rate});
+ NPCS.anchor.name=(TV_NET[home]||'GNN 7')+' ANCHOR';
+ gameState.flags.rival=RIVALS[home]||'China';
+ if(S4&&S4.support!=null) /* year one's support is what the capital polls against */
+  gameState.stats.publicSupport=Math.max(0,Math.min(5,S4.support));
+ $('end4Card').style.display='none';
+ ['ghud','padCtl','objWrap','ch4','timeCtl','n5hud'].forEach(id=>$(id).style.display='none');
+ $('hudMass').parentElement.style.display='';
+ ch6HabView();
+ if(hasTHREE)buildComms(HL.flag);
+ document.body.classList.add('cine');
+ setAmb(.55,2);setArp(0,2);
+ gameState.date='June 2032';updateHUD();
+ const slug=$('slug');
+ slug.textContent='Shackleton Base \u00b7 Year Two \u00b7 The evening feed from home';
+ slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4800);
+ applyShot('twoshot');
+ playCut(ch6NewsBeats(),()=>{if(gameState.scene==='CH6_CALL')go('CH6TV');});
+}
+function enterCh6Tv(){
+ hideSub();document.body.classList.remove('cine');
+ ['ghud','padCtl','limits','objWrap','ch4','timeCtl'].forEach(id=>$(id).style.display='none');
+ const net=TV_NET[gameState.site.country]||'GNN 7';
+ const rival=ch6Rival(),rSite=ch6RivalSite();
+ if(hasTHREE){
+  buildSite(rSite); /* the rival pad, through the home network's long lens */
+  orbitRoot.visible=false;cabinRoot.visible=false;terraRoot.visible=false;
+  siteRoot.visible=true;
+  if(rover3)rover3.visible=false;
+  camBase.set(26,10,30);camLook.set(0,7,0);shakeAmp=0;
+ }
+ const slug=$('slug');
+ slug.textContent=rSite.name+' \u00b7 '+rival+' \u00b7 Live on '+net;
+ slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
+ tvShow({mode:'doc',net:net+' \u00b7 LIVE',pool:[
+  ['ANCHOR',"You are watching "+rival+"'s pad, live. No manifest was filed. That is a crewed vehicle \u2014 our analysts count seats for four."],
+  ['FIELD',"I have covered thirty launches and my hands are steady. They are not steady tonight. Look at the size of that stack."],
+  ['ANCHOR',"It is beautiful. We should be able to say that and mean it \u2014 whatever it carries."],
+  ['FIELD',"No music at this pad, no crowd. Floodlights, and a countdown in a language our desk is translating on the fly."],
+  ['ANCHOR',"If that ship is going where everyone in this studio believes it is going, the Moon is about to have neighbors \u2014 and a border."]
+ ]});
+ launch.phase='liftoff';launch.t=0;launch.tlIdx=0;
+ launch.timeline=[
+  [0,()=>{callout('anchor',"Ignition \u2014 their engines just lit. You are hearing our field team's feed from outside the fence.");setRumbleDrive(.55);shakeAmp=.12;}],
+  [2.2,()=>{callout('anchor',"And liftoff. Liftoff at "+rSite.name+" \u2014 crewed, unannounced, and climbing fast.");setRumbleDrive(1);shakeAmp=.18;sfxSwell();}],
+  [9,()=>{shakeAmp=.1;callout('anchor',"Trajectory is\u2026 translunar. The desk just said it plainly: that ship is going to the Moon.");}],
+  [14,()=>{callout('anchor',"Staging \u2014 clean. Whatever else is true tonight, the hardware is magnificent.");sfxThud(true);stageSeparation();shakeAmp=.14;}],
+  [15.5,()=>{shakeAmp=.05;setRumbleDrive(.45);}],
+  [17.5,()=>tvCaption('ANCHOR',"We have lost the long lens. The story is no longer at the pad \u2014 it is a quarter million miles up, and it is not slowing down.")],
+  [20,()=>leaveCh6Tv()]
+ ];
+ $('missionClock').style.display='block';
+ $('skipBtn').style.display='block';
+}
+function leaveCh6Tv(){
+ if(gameState.scene!=='CH6TV')return;
+ launch.tlIdx=launch.timeline.length;
+ launch.phase='idle';
+ cancelVoice();tvHide();hideSub();
+ shakeAmp=0;setRumbleDrive(0);
+ $('missionClock').style.display='none';
+ ch6HabView(); /* the comms panel still holds the home screen from part one */
+ gameState.scene='CH6_CALL'; /* back to the hab without re-running the entry */
+ if(AM.ctx)setMix('DEPLOY2');
+ document.body.classList.add('cine');
+ applyShot('twoshot');
+ playCut(ch6CallBeats(),ch6Finish);
+}
+function ch6ChoiceNode(){
+ const sup=Math.max(0,Math.min(5,gameState.stats.publicSupport));
+ const odds='support '+sup+'/5 \u2192 '+(sup*20)+'% the capital follows you';
+ return {s:'leader',t:"So advise me, Eden \u2014 one word before the vote. Which human tradition reaches the Moon first: peace, or war?",choices:[
+  {label:'\u201cPeace. Put a treaty on the pad before they land \u2014 shared corridors, open manifests, one rescue channel.\u201d',
+   tags:'counsel peace \u00b7 '+odds,fx:()=>ch6Resolve('peace')},
+  {label:'\u201cWar footing. Arm the claim \u2014 whoever holds the ice writes the rules, and they did not file a manifest.\u201d',
+   tags:'counsel war \u00b7 '+odds,fx:()=>ch6Resolve('war')},
+  {label:'(\u26cf\ufe0f) \u201cThe ice doesn\u2019t care about flags. Publish our survey \u2014 all of it \u2014 and invite their geologists to check the math.\u201d',
+   req:'geo',showLocked:true,tags:'counsels peace \u00b7 '+odds,fx:()=>ch6Resolve('peace')}
+ ]};
+}
+function ch6Resolve(choice){
+ const wantWar=choice==='war';
+ const support=Math.max(0,Math.min(5,gameState.stats.publicSupport));
+ const r=ch6Decide(wantWar,support,Math.random);
+ const f=gameState.flags;
+ f.ch6War=r.war;f.coalition=!r.war;f.ch6Influenced=r.influenced;
+ gameState.log.push('Counseled '+(wantWar?'war':'peace')+' on the leader call.');
+ gameState.log.push(r.war?'The capital chose war.':'The capital chose peace.');
+ DLG.queue=ch6OutcomeBeats(wantWar,r).concat(DLG.queue);
+}
+function ch6OutcomeBeats(wantWar,r){
+ const HL=LEADERS[gameState.site.country]||LEADERS['USA'];
+ const B=[];
+ if(r.influenced&&!r.war){
+  B.push({s:'leader',t:"My chief of staff is holding up the whip count \u2014 it moved while you were still talking. That is what your names are worth down here. The chamber takes the coalition frame tonight: peace, signed a quarter million miles from the ink."});
+  B.push({s:'sci',t:"First tradition on the Moon: somebody left the door unlocked on purpose."});
+ }else if(r.influenced&&r.war){
+  B.push({s:'leader',t:"The count moved the moment you said it \u2014 the chamber will arm the claim, and the country will cheer, because the Moon asked them to. The armament bill carries your names with it. I hope you are right, Eden. You live closer to the consequences than any of us."});
+  B.push({s:'eng',t:"Then somebody had better double the spares line. Fortresses break more than farms do."});
+ }else if(r.war!==wantWar){
+  B.push({s:'leader',t:r.war?
+   "...The whip count is on my desk and it is not kind to either of us. The chamber votes armament \u2014 over your counsel, over my signature. I asked the only people on the Moon for a word and I am overriding it within the hour. On the record, Eden: I am sorry.":
+   "...The whip count says the chamber will not arm. They take the coalition frame \u2014 over your counsel. Maybe the polls flinched at the cost; maybe they are wiser than both of us. Either way, you will be shaking hands with the neighbors you warned me about."});
+  B.push(r.war?
+   {s:'cdr',t:"Understood. We gave you our honest read \u2014 what the capital does with it was always yours to carry."}:
+   {s:'eng',t:"Noted for the log: we advised the hard line, and home picked the handshake. I'll oil it."});
+ }else{
+  B.push({s:'leader',t:r.war?
+   "I will be honest: the count never moved while you spoke. The polls barely carry your names this season. The chamber landed on armament by its own arithmetic \u2014 you asked for war and war is what you get. Just do not call it influence.":
+   "I will be honest: the count never moved while you spoke \u2014 the polls have wandered off you this season. The chamber found its own way to the coalition frame. You wanted peace; you have it, by a margin of nobody listening."});
+  B.push({s:'sci',t:"So the Moon's first policy came down to a coin that didn't know we were watching. Log it honestly."});
+ }
+ B.push({s:'leader',t:"Their ship is inbound regardless of any vote. Stake our claim before they land \u2014 "+
+  (r.war?"and from tonight, consider the rim a border.":"and set the table. History remembers who poured the first water.")+
+  " "+HL.cap+" out."});
+ return B;
+}
+function ch6CallBeats(){
+ const home=gameState.site.country;
+ const HL=LEADERS[home]||LEADERS['USA'];
+ const RL=LEADERS[gameState.flags.rival]||LEADERS['China'];
+ return [
+  {shot:'wide',dur:3400,pre:()=>sfxRadio(),
+   cap:'(priority uplink \u2014 it is the middle of the night in '+HL.cap+', and the call still came)'},
+  {shot:'screen',who:'leader',lag:true,t:"Eden. You saw the pictures before my analysts did. "+RL.cap+" has four crew on a translunar track and a landing site they never filed. My cabinet is split, the chamber votes within the week, and every option on my desk is written in someone else's blood pressure."},
+  {shot:'cdr',who:'cdr',t:"We watched it go up on the evening news, between the weather and a ferry story. It was a beautiful launch. That's the honest first report."},
+  {shot:'screen',who:'leader',lag:true,t:"Honest is why I called. The vote back home is armament or a coalition frame \u2014 hard line or open hand. Before I walk into that chamber, I want the only humans who actually live up there on the record."},
+  {dialog:()=>[ch6ChoiceNode()]},
+  {shot:'twoshot',dur:3000,cap:'(link drop \u2014 half a sky away, a chamber begins to vote)'}
+ ];
+}
+function ch6Finish(){
+ if(gameState.scene!=='CH6_CALL')return;
+ if(gameState.flags.ch6War===undefined){ /* skipped past the ask \u2014 the call still ends on the question */
+  showDialog([ch6ChoiceNode()],ch6Finish);
+  return;
+ }
+ hideSub();document.body.classList.remove('cine');
+ $('skipBtn').style.display='none';
+ NPCS.anchor.name='GNN ANCHOR'; /* undo the per-net rename so other chapters read clean */
+ setObjective('Stake the claim before they land');
+ go('GAME6');
+}
+$('chap6Btn').addEventListener('click',()=>{
+ sfxClick();$('end4Card').style.display='none';go('CH6_CALL');
 });
 
 /* ================= Crew Archive: chapter select ================= */

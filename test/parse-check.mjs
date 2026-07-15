@@ -4,7 +4,7 @@ try{new Function(js);ok(true,'script parses');}catch(e){ok(false,'script parses:
 const ids=[...new Set([...js.matchAll(/\$\('([A-Za-z0-9_]+)'\)/g)].map(m=>m[1]))];
 const missing=ids.filter(id=>!new RegExp(`id="${id}"`).test(html));
 ok(missing.length===0,`dom ids: ${ids.length} referenced${missing.length?' — MISSING: '+missing.join(','):', all present'}`);
-for(const m of ['@c4-start','@c4-end','@c4rt-start','@c4rt-end','@arch-start','@arch-end'])
+for(const m of ['@c4-start','@c4-end','@c4rt-start','@c4rt-end','@c6d-start','@c6d-end','@arch-start','@arch-end'])
  ok(js.includes(m),'pure-block marker '+m+' (tests extract via these — keep them)');
 ok(/EDEN_BUILD='\d+\.\d+\.\d+'/.test(js),'EDEN_BUILD constant present');
 ok(js.includes("'SURVEY BUILD '+EDEN_BUILD"),'version tag wired to menu');

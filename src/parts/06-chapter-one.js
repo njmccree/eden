@@ -181,7 +181,8 @@ function go(name){
   LAUNCH:'LAUNCH_POLL',CHAPTER_END:'CHAPTER_END',COAST:'COAST',
   ARRIVE2:'ARRIVE2',GAME2:'GAME2',TOUCH2:'TOUCH2',DEPLOY2:'DEPLOY2',REPORT2:'REPORT2',
   CH3_CALL:'DEPLOY2',GAME3:'GAME2',ICE3:'TOUCH2',REPORT3:'REPORT2',
-  CH4:'PLANNING',CH4_END:'REPORT2',CH5:'COAST',CH5_END:'REPORT2',DOCTV:'LAUNCH_GO'};
+  CH4:'PLANNING',CH4_END:'REPORT2',CH5:'COAST',CH5_END:'REPORT2',DOCTV:'LAUNCH_GO',
+  CH6_CALL:'DEPLOY2',CH6TV:'LAUNCH_GO'};
  if(AM.ctx&&mixMap[name])setMix(mixMap[name]);
  if(name==='SITE_SELECT')enterSiteSelect();
  if(name==='DESCENT')enterDescent();
@@ -202,6 +203,8 @@ function go(name){
  if(name==='CH4_END')openReport4();
  if(name==='CH5')enterCh5();
  if(name==='DOCTV')enterDocTv();
+ if(name==='CH6_CALL')enterCh6Call();
+ if(name==='CH6TV')enterCh6Tv();
 }
 let pinGroup=null,pinSel=null;
 function enterSiteSelect(){
