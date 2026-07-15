@@ -28,8 +28,8 @@ const CHAPTERS = [
   {row: 1, name: 'interlude-coast', settle: 5000},
   {row: 2, name: 'ch2-arrival',     settle: 5000},
   {row: 3, name: 'ch3-call',        settle: 5000},
-  {row: 4, name: 'ch4-colony',      settle: 4000, ready: '#dialog', dialogTo: '#ch4'},
-  {row: 5, name: 'ch5-long-night',  settle: 4000, ready: '#dialog', dialogTo: '#n5hud'},
+  {row: 4, name: 'ch4-long-night',  settle: 4000, ready: '#dialog', dialogTo: '#n5hud'},
+  {row: 5, name: 'ch5-colony',      settle: 4000, ready: '#dialog', dialogTo: '#ch4'},
 ];
 
 const errors = [];

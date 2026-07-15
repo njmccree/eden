@@ -1474,7 +1474,7 @@ function leaveDocTv(){
  $('missionClock').style.display='none';
  $('skipBtn').style.display='none';
  if(hasTHREE){siteRoot.visible=false;scene.fog=null;}
- go('CH4');
+ go('CH5');
 }
 
 /* ================= Chapter 4: The Import Ledger ================= */
@@ -1908,8 +1908,8 @@ function resolveBoundary(){
   }
  }
  reconcileTiles({water:S4.water-w0,prop:S4.prop-p0,food:S4.foodPct-f0,budget:S4.budget-b0});
- gameState.date=['September 2031','October 2031','November 2031','December 2031',
-  'January 2032','February 2032','March 2032','April 2032'][Math.min(7,S4.w-2)];
+ gameState.date=['October 2031','November 2031','December 2031','January 2032',
+  'February 2032','March 2032','April 2032','May 2032'][Math.min(7,S4.w-2)];
  renderCh4Hud();
  if(hasTHREE)renderBase();
  let t=300;
@@ -1954,7 +1954,7 @@ function enterCh4(){
  M4=c4Mods(gameState);
  SPD=1;[0,1,2,3].forEach(j=>$('spd'+j).classList.toggle('on',j===1));
  buildColony();
- gameState.date='August 2031';
+ gameState.date='September 2031';
  const slug=$('slug');
  slug.textContent='Sol 40 \u00b7 Surface operations \u00b7 Year One';
  slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
@@ -2158,7 +2158,7 @@ function openReport4(suspended){
    'The regulator\u2019s ghost is finally printed out of the story. \ud83d\udd27':
    'The Chief still keeps one eye on the spares crate.',
   (gameState.flags.baiterek||gameState.flags.baiterekEden?'Baiterek':'Shackleton Base')+
-   ' enters the long night '+(grade==='A'?'paying its own way.':'still owing Earth a few lines.')
+   ' closes year one '+(grade==='A'?'paying its own way.':'still owing Earth a few lines.')
  ];
  const rr=$('end4Rows');rr.innerHTML='';
  rows.forEach(t=>{const d=document.createElement('div');d.textContent=t;rr.appendChild(d);});
@@ -2167,7 +2167,7 @@ function openReport4(suspended){
 }
 $('chap4Btn').addEventListener('click',()=>{
  sfxClick();$('end3Card').style.display='none';
- go(gameState.flags.mediaDeal?'DOCTV':'CH4');
+ go(gameState.flags.mediaDeal?'DOCTV':'CH5');
 });
 $('restartBtn5').addEventListener('click',()=>{
  sfxClick();$('end4Card').style.display='none';resetGame();
@@ -2261,7 +2261,7 @@ function enterCh5(){
  }
  N5={T:0,batt:100,heat:100,crewC:100,f:{},beat:0,done:false};
  if(gameState.payloads.includes('solar'))N5.batt+=8; /* deeper storage bank */
- gameState.date='February 2032';
+ gameState.date='August 2031';
  $('hud').style.display='none';$('ghud').style.display='none';
  $('n5hud').style.display='flex';
  $('missionClock').style.display='block';
@@ -2269,7 +2269,7 @@ function enterCh5(){
  $('objWrap').style.display='flex';
  setArp(.25,4);
  const slug=$('slug');
- slug.textContent='Sol 214 · The Long Night · Chapter Five';
+ slug.textContent='Sol 14 · The Long Night · Chapter Four';
  slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
  showDialog([
   {s:'flight',t:"Eden, the terminator crossed your rim an hour ago. Next sunrise is six sols out. Everything you are tonight is stored in one battery bank — spend it like air."},
@@ -2303,7 +2303,7 @@ function openReport5(failed){
  $('end5Card').style.display='flex';
 }
 $('chap5Btn').addEventListener('click',()=>{
- sfxClick();$('end4Card').style.display='none';go('CH5');
+ sfxClick();$('end5Card').style.display='none';go('CH4');
 });
 $('restartBtn6').addEventListener('click',()=>{
  sfxClick();$('end5Card').style.display='none';resetGame();
@@ -2335,7 +2335,7 @@ function rollHistory(n,rnd){
    publicSupport:2+Math.floor(rnd()*3)};
  }
  if(n>=5)R.callFlags=pk(ARCH_CALL[R.site.country]||[{}]);
- if(n>=6)R.ch4Grade=pk(['A','B','B','C']);
+ if(n>=6)R.nightGrade=pk(['A','B','B','C']);
  return R;
 }
 /* @arch-end */
@@ -2344,8 +2344,8 @@ const ARCH_ROWS=[
  {n:2,go:'COAST',t:'The Coast',d:'Interlude \u2014 three days out, one harmonica'},
  {n:3,go:'ARRIVE2',t:'The Landing',d:'Lunar orbit to the Shackleton rim, by hand'},
  {n:4,go:'CH3_CALL',t:'First Ice',d:'The call home, then the traverse into the dark'},
- {n:5,go:'CH4',t:'The Import Ledger',d:'Year one \u2014 run the base, retire the lines'},
- {n:6,go:'CH5',t:'The Long Night',d:'Six sols of dark, one battery'}
+ {n:5,go:'CH5',t:'The Long Night',d:'Six sols of dark, one battery'},
+ {n:6,go:'CH4',t:'The Import Ledger',d:'Year one \u2014 run the base, retire the lines'}
 ];
 function forgeHistory(n){
  const R=rollHistory(n);
@@ -2366,9 +2366,10 @@ function forgeHistory(n){
   Object.assign(gs.flags,R.callFlags||{});
   gs.log.push('First ice core in cold stowage.');
  }
+ if(n>=5)gs.date='August 2031';
  if(n>=6){
-  gs.flags.ch4Grade=R.ch4Grade;gs.date='February 2032';
-  gs.log.push('Year one grade: '+R.ch4Grade+'.');
+  gs.flags.ch5Grade=R.nightGrade;gs.date='September 2031';
+  gs.log.push('First full night survived: grade '+R.nightGrade+'.');
  }
  return R;
 }

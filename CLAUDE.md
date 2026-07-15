@@ -2,8 +2,14 @@
 
 Single-file HTML game (three.js + Web Audio, no build deps, no server) covering the
 first years of a lunar base: launch campaign management, a hand-flown landing, an
-ice traverse, a real-time colony sim, and a first-lunar-night survival vignette.
-Current: **SURVEY BUILD 0.14.0**, five chapters + interlude + chapter select.
+ice traverse, a first-lunar-night survival vignette, and a real-time colony sim.
+Current: **SURVEY BUILD 0.16.0**, five chapters + interlude + chapter select.
+**Presentation order vs internal ids**: the Long Night is presented as Chapter FOUR
+(right after the traverse — the first night hits ~sol 14) and the Import Ledger
+colony year as Chapter FIVE, but the internal ids kept their original names:
+scene `CH5`/`N5`/`C5`/`@c5-*` = the night, scene `CH4`/`S4`/`C4`/`@c4-*` = the
+colony. Never rename these — the sims and pure blocks key off them. Flow:
+REPORT3 → (DOCTV if mediaDeal) → CH5 night → end5Card → CH4 colony → end4Card.
 Ch.5 is a first playable pass — candidates for deepening: live load-shedding
 controls, night EVAs, a proper astro()-driven night length.
 
