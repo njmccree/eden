@@ -132,8 +132,8 @@ try {
     await page.click('#archBtn');
     await page.waitForSelector('#archive', {state: 'visible'});
     const rows = await page.locator('.archRow').count();
-    console.log(`${rows === 6 ? 'ok  ' : 'FAIL'} archive rows: ${rows}`);
-    if (rows !== 6) errors.push(`expected 6 archive rows, got ${rows}`);
+    console.log(`${rows === 7 ? 'ok  ' : 'FAIL'} archive rows: ${rows}`);
+    if (rows !== 7) errors.push(`expected 7 archive rows, got ${rows}`);
     await shot(page, '03-crew-archive');
     await page.close();
   }
@@ -158,6 +158,27 @@ try {
     await page.evaluate(() => { R3.x = -160; }); // teleport into the shadowed bowl
     await page.waitForTimeout(1500);
     await shot(page, '11-ch3-traverse-bowl', {minStd: 3}); // PSR is meant to be dark
+    await page.close();
+  }
+
+  {
+    // Ch.6 epilogue (CH6_ARRIVE): rival lander descent + coalition base reveal.
+    // Direct jump with deterministic flags — archive row 7 opens CH6_CALL (the
+    // chapter start), whose cutscene lives in the sibling unit. Coordinator:
+    // post-merge, also enable a row-6 CHAPTERS entry
+    //   {row: 6, name: 'ch6-line-on-map', settle: 5000}
+    // to shoot the CH6_CALL entry via the archive.
+    const page = await browser.newPage({viewport: {width: 390, height: 844}, deviceScaleFactor: 2});
+    await bootToMenu(page, base, 'ch6-arrive');
+    await page.evaluate(() => {
+      forgeHistory(7); $('menu').classList.add('gone'); orbitRoot.visible = false;
+      Object.assign(gameState.flags, {rival: 'China', ch6War: false, coalition: true, claimPct: 72});
+      go('CH6_ARRIVE');
+    });
+    await page.waitForTimeout(6000);
+    await shot(page, '14-ch6-arrive-descent'); // rival lander mid-descent over the plain
+    await page.waitForTimeout(8000);
+    await shot(page, '15-ch6-rival-base');     // touchdown + coalition cluster revealed
     await page.close();
   }
 

@@ -2,14 +2,17 @@
 
 Single-file HTML game (three.js + Web Audio, no build deps, no server) covering the
 first years of a lunar base: launch campaign management, a hand-flown landing, an
-ice traverse, a first-lunar-night survival vignette, and a real-time colony sim.
-Current: **SURVEY BUILD 0.16.0**, five chapters + interlude + chapter select.
+ice traverse, a first-lunar-night survival vignette, a real-time colony sim, and
+a rival territory race. Current: **SURVEY BUILD 0.16.0**, six chapters +
+interlude + chapter select.
 **Presentation order vs internal ids**: the Long Night is presented as Chapter FOUR
 (right after the traverse — the first night hits ~sol 14) and the Import Ledger
 colony year as Chapter FIVE, but the internal ids kept their original names:
 scene `CH5`/`N5`/`C5`/`@c5-*` = the night, scene `CH4`/`S4`/`C4`/`@c4-*` = the
 colony. Never rename these — the sims and pure blocks key off them. Flow:
-REPORT3 → (DOCTV if mediaDeal) → CH5 night → end5Card → CH4 colony → end4Card.
+REPORT3 → (DOCTV if mediaDeal) → CH5 night → end5Card → CH4 colony → CH4_END →
+CH6_CALL → GAME6 → CH6_END → CH6_ARRIVE (rival landing epilogue: coalition beside
+the base on peace, a silent far-ridge outpost on war, then back to the title).
 Ch.5 is a first playable pass — candidates for deepening: live load-shedding
 controls, night EVAs, a proper astro()-driven night length.
 
@@ -56,7 +59,7 @@ controls, night EVAs, a proper astro()-driven night length.
 | 04-earth-launch.js | Earth textures, orbital cutscene, launch site, 2031 rocket (booster+upper groups), staging, world-space plume, launch-sky star shader |
 | 05-lunar-scene.js | Cabin + moon-window scenes, crew rigs, lunar terrain (`terrainH` gameplay profile at z=0; `terrainH3`/`wildH`/`CRATERS` 3D heightfield around it), horizon rings, lander, particle pools, `terraSun`/`terraAmb`/`earthBall` handles |
 | 06-chapter-one.js | Ch.1 management game, dialog engine, `go()` scene router + `mixMap`, settings, `resetGame()` |
-| 07-chapters-2-5.js | Cutscenes, Ch.2 lander, Ch.3 call + traverse, Ch.4 colony (astronomy, crew, econ), Ch.5 long night (`C5`/`N5`), Crew Archive, frame loop, boot |
+| 07-chapters-2-5.js | Cutscenes, Ch.2 lander, Ch.3 call + traverse, Ch.4 colony (astronomy, crew, econ), Ch.5 long night (`C5`/`N5`), Ch.6 race + rival landing (`CH6_ARRIVE`/`buildRivalBase`), Crew Archive, frame loop, boot |
 
 One continuous `gameState` flows through every chapter; earlier choices surface as
 flags (`waivedAnomaly`, leader-call deals, payloads, background) consumed by later
@@ -76,6 +79,10 @@ chapters. Scene transitions go through `go(name)`; audio follows via `mixMap`.
   `tvShow({mode,pool,net,camFn,sceneOk})` (06)
 - Ch.5 night: `C5` object (drains, leak/EVA/blackout numbers) in the `@c5-*` pure
   block, pacing `SOL5_SEC=14`, beats in `N5_BEATS`
+- Ch.6 race: `B6`/`OBS6`/`GATES6` in `@c6`; decision `@c6d`; `RIVALS` map in 02.
+  Epilogue: `buildRivalBase(war)` sites the rival cluster at PEACE (x 74, z 12,
+  beside the base) or WAR (x 150, z −30, up the eastern ridge); descent pacing
+  `A.t/8` in `c6Update` (07)
 - Ch.4 colony: `C4` object (rates, ledger masses, project costs), `CREWD` skills,
   shift length `4.1` in `accrueSol`, `SOL_SEC=10` (real seconds per sol at 1×),
   astronomy in `astro()` (synodic 29.5306 d, draconic 27.2122 d, rim horizon geometry)
