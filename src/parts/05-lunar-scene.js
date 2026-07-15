@@ -432,3 +432,56 @@ function buildLunar(){
  lDust=makePool(240,3.8,0xb9b4a6,false);terraRoot.add(lDust.pts);
  lBoom=makePool(110,5,0xff8a4a,true);terraRoot.add(lBoom.pts);
 }
+
+/* ---- Ch.6 land-rush props: hover speeder, stake markers, boulders ---- */
+function buildSpeeder(){
+ /* sleek low-slung sled, nose toward -x (direction of travel); no wheels */
+ const g=new THREE.Group();
+ const sWhite=new THREE.MeshPhongMaterial({color:0xe8e9ec,flatShading:true,shininess:30});
+ const sDark=new THREE.MeshPhongMaterial({color:0x2b3038,flatShading:true});
+ const sGold=new THREE.MeshPhongMaterial({color:0xc8a24a,flatShading:true,shininess:35});
+ const hull=new THREE.Mesh(new THREE.BoxGeometry(4.6,.7,1.5),sWhite);
+ hull.position.y=1.15;g.add(hull);
+ const nose=new THREE.Mesh(new THREE.BoxGeometry(1.5,.5,.95),sGold);
+ nose.position.set(-2.85,1.05,0);g.add(nose);
+ const fin=new THREE.Mesh(new THREE.BoxGeometry(1.05,.85,.12),sDark);
+ fin.position.set(2.05,1.7,0);g.add(fin);
+ [[-1],[1]].forEach(([s])=>{
+  const nac=new THREE.Mesh(new THREE.CylinderGeometry(.4,.4,3.3,8),sDark);
+  nac.rotation.z=Math.PI/2;nac.position.set(.35,.95,s*1.2);g.add(nac);
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(.4,8,6),sGold);
+  tip.position.set(-1.3,.95,s*1.2);g.add(tip);});
+ const screen=new THREE.Mesh(new THREE.BoxGeometry(.75,.5,.9),
+  new THREE.MeshPhongMaterial({color:0x8fd8e8,shininess:80,specular:0xffffff,
+   transparent:true,opacity:.7}));
+ screen.position.set(-1.05,1.62,0);screen.rotation.z=.4;g.add(screen);
+ const glow=new THREE.Mesh(new THREE.ConeGeometry(1.15,1.7,10,1,true),
+  new THREE.MeshBasicMaterial({color:0x7fc8ff,transparent:true,opacity:.26,
+   depthWrite:false,blending:THREE.AdditiveBlending}));
+ glow.rotation.x=Math.PI;glow.position.y=.3;g.add(glow);
+ const lamp=new THREE.PointLight(0x9fd4ff,1.1,26);
+ lamp.position.set(0,1.5,0);g.add(lamp);
+ g.userData.glow=glow;
+ return g;
+}
+function buildStake6(){
+ /* survey stake: pole + emissive beacon lamp (drill-lamp pattern) + claim flag */
+ const g=new THREE.Group();
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,4.2,6),
+  new THREE.MeshPhongMaterial({color:0x2b3038,flatShading:true}));
+ pole.position.y=2.1;g.add(pole);
+ const lamp=new THREE.Mesh(new THREE.SphereGeometry(.42,8,8),
+  new THREE.MeshBasicMaterial({color:0x5a4522}));
+ lamp.position.y=4.4;g.add(lamp);
+ const flag=new THREE.Mesh(new THREE.BoxGeometry(.06,.55,.95),
+  new THREE.MeshBasicMaterial({color:0x6fd8c8}));
+ flag.position.set(0,3.55,.55);flag.visible=false;g.add(flag);
+ g.userData.lamp=lamp;g.userData.flag=flag;
+ return g;
+}
+function buildBoulder6(r){
+ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,0),
+  new THREE.MeshPhongMaterial({color:0x8a8d93,flatShading:true,shininess:4}));
+ m.rotation.set((r*7)%1.3,(r*13)%2.1,(r*5)%1.7); /* deterministic variety */
+ return m;
+}

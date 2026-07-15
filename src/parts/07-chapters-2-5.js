@@ -520,6 +520,7 @@ $('skipBtn').addEventListener('click',e=>{
  else if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'||sc==='CH6_CALL'){SCN.abort=true;cancelVoice();if(SCN.tapFn)SCN.tapFn();}
  else if(sc==='TOUCH2')skipTouchdown();
  else if(sc==='ICE3')skipExtraction();
+ else if(sc==='FIN6')skipFinish6();
  else if(sc==='DOCTV')leaveDocTv();
  else if(sc==='CH6TV')leaveCh6Tv();
 });
@@ -747,6 +748,31 @@ function frame(now){
   const ang5=now*.00004;
   camera.position.set(PAD_X-2+Math.sin(ang5)*44,PAD_TOP+13,Math.cos(ang5)*44);
   camera.lookAt(PAD_X-2,PAD_TOP+4,0);
+ }else if(sc==='GAME6'||sc==='CRASH6'||sc==='FIN6'||sc==='CH6_END'){
+  if(sc==='GAME6')raceUpdate(dt);
+  stepPool(lDust,dt,-1.3);
+  beacons.forEach((b,i)=>{
+   const on=(Math.sin(now*.004+i*2.1)+1)/2>.45;
+   b.material.color.setHex(on?0x7fe08f:0x123318);});
+  const g6x=R6.x,g6y=terrainH(g6x);
+  if(speeder6&&speeder6.visible){
+   speeder6.position.set(g6x,g6y+1.1+Math.sin(now*.0032)*.12,R6.z); /* hover bob */
+   speeder6.rotation.z=Math.atan(slopeAt(g6x))*.8;
+   speeder6.rotation.x=-R6.vz*.05; /* bank into the turn */
+   speeder6.userData.glow.material.opacity=.16+.22*(R6.v/B6.VBOOST);
+  }
+  stakes6.forEach((s,i)=>{
+   if(R6.stakeMask&(1<<i))return; /* planted stakes hold steady green */
+   const on=(Math.sin(now*.005+i*1.9)+1)/2>.4;
+   s.userData.lamp.material.color.setHex(on?0xffc06a:0x5a4522);});
+  /* chase cam: low behind the velocity vector, handheld sway, looking ahead */
+  const c6y=Math.max(g6y,terrainH(g6x+20));
+  camera.position.set(
+   g6x+20+(Math.random()-.5)*shakeAmp*2,
+   c6y+6+Math.sin(now*.0011)*.4+(Math.random()-.5)*shakeAmp*2,
+   R6.z+4.5+(Math.random()-.5)*shakeAmp);
+  camera.lookAt(g6x-6+Math.sin(now*.0007)*.9,g6y+1.8-(c6y-g6y)*.5,R6.z);
+  if(sc!=='GAME6')shakeAmp=Math.max(0,shakeAmp-dt*.3);
  }else if(sc==='GAME3'||sc==='ICE3'||sc==='CRASH3'||sc==='REPORT3'){
   if(sc==='GAME3')roverUpdate(dt);
   stepPool(lDust,dt,-1.3);
@@ -1147,6 +1173,13 @@ function setGhudMode(mode){
   grps[2].innerHTML='<span>BATT</span><div id="fuelBar"><i></i></div><span class="v" id="hFuel">100%</span>';
   $('limits').textContent='KEEP TEMP ABOVE \u221260\u00b0C \u00b7 WATCH THE BATTERY'+
    (gameState.flags.icePremiere?' \u00b7 CROWD BOOST \u00b7 BIT +20%':'');
+ }else if(mode==='speeder'){
+  grps[0].innerHTML='<span>SPEED</span><span class="v" id="hAlt">\u2014</span>'+
+   '<span>T\u2212MINUS</span><span class="v" id="hVs">\u2014</span>';
+  grps[1].innerHTML='<span>STAKES</span><span class="v" id="hHs">\u2014</span>'+
+   '<span>HULL</span><span class="v" id="hTilt">\u2014</span>';
+  grps[2].innerHTML='<span>CLAIM WINDOW</span><div id="fuelBar"><i></i></div><span class="v" id="hFuel">\u2014</span>';
+  $('limits').textContent='PLANT STAKES \u00b7 DODGE ROCK \u00b7 BEAT THE CLOCK';
  }else{
   grps[0].innerHTML='<span>ALT</span><span class="v" id="hAlt">\u2014</span>'+
    '<span>V/S</span><span class="v" id="hVs">\u2014</span>';
@@ -2493,6 +2526,292 @@ function ch6Finish(){
 }
 $('chap6Btn').addEventListener('click',()=>{
  sfxClick();$('end4Card').style.display='none';go('CH6_CALL');
+});
+
+/* ================= Chapter 6: The Land Rush ================= */
+/* Hover-speeder race down the rim corridor: plant six survey stakes and cross
+   the finish line before the rival crew's lander commits. Completion speed,
+   stakes planted, and hull discipline set how much territory the claim holds.
+   Forward is -x (START x=60 on the pad apron, FINISH x=-320 past the bowl). */
+/* @c6-start */
+const B6={X0:60,X1:-320,VMAX:26,VBOOST:34,ACC:9,LAT:9,TIME:75,HITV:.45,HULL0:100,HITDMG:14,STAKES:6};
+/* boulders [x,z,r]: flank the gate-to-gate racing line but never sit on it */
+const OBS6=[
+ [44,5,2.2],[28,-12,1.7],[8,2,2.6],[-20,-9,2],[-56,9,2.4],[-80,-8,1.6],
+ [-96,4,2.8],[-124,-9,2.1],[-148,9,1.8],[-188,-3,2.5],[-212,8,1.6],
+ [-256,-7,2.7],[-276,10,1.9],[-310,0,2.3]
+];
+/* stake gates [x,z]: tap plant inside |dx|<6, |dz|<4 */
+const GATES6=[[20,-8],[-44,4],[-108,-5],[-172,7],[-236,-2],[-300,6]];
+function gateAt6(st){
+ for(let i=0;i<GATES6.length;i++){
+  if(st.stakeMask&(1<<i))continue;
+  const g=GATES6[i];
+  if(Math.abs(st.x-g[0])<6&&Math.abs(st.z-g[1])<4)return i;
+ }
+ return -1;
+}
+function raceStep(st,inp,dt){
+ /* dead-man throttle: any held input drives toward VMAX (VBOOST while boosting);
+    hands off, the sled settles - the brake IS letting go */
+ const drive=inp.l||inp.r||inp.boost;
+ const tv=drive?(inp.boost?B6.VBOOST:B6.VMAX):0;
+ const dv=tv-st.v;
+ st.v+=Math.max(-B6.ACC*dt,Math.min(B6.ACC*dt,dv));
+ const tz=(inp.l?B6.LAT:0)+(inp.r?-B6.LAT:0);
+ st.vz+=(tz-st.vz)*Math.min(1,dt*8);
+ st.z+=st.vz*dt;
+ if(st.z>14){st.z=14;st.vz=0;st.v=Math.max(0,st.v-6*dt);}       /* rubbing the wall */
+ else if(st.z<-14){st.z=-14;st.vz=0;st.v=Math.max(0,st.v-6*dt);}
+ st.x-=st.v*dt;
+ st.t+=dt;
+ if(st.cool>0)st.cool-=dt;
+ else for(let i=0;i<OBS6.length;i++){
+  const o=OBS6[i];
+  if(Math.hypot(st.x-o[0],st.z-o[1])<o[2]+1.1){
+   st.v*=B6.HITV;st.hull=Math.max(0,st.hull-B6.HITDMG);
+   st.hits++;st.cool=.9;break;} /* cooldown: one rock bills once */
+ }
+ if(inp.plant){
+  const gi=gateAt6(st);
+  if(gi>=0){st.stakeMask|=1<<gi;st.stakes++;st.planted=gi;}
+ }
+ if(st.x<=B6.X1)st.done=true;
+ else if(st.t>=B6.TIME)st.dnf=true;
+ return st;
+}
+function claimFrom(timeLeft,stakes,hits){
+ const c=40+timeLeft/B6.TIME*30+stakes/B6.STAKES*30-hits*3;
+ return Math.round(Math.max(25,Math.min(100,c)));
+}
+function raceGrade(st,claim){
+ if(st.dnf)return 'D';
+ if(claim>=85&&st.hits===0)return 'A';
+ if(claim>=65)return 'B';
+ return 'C';
+}
+/* @c6-end */
+let speeder6=null,race6Grp=null,stakes6=[];
+const R6={x:60,z:0,v:0,vz:0,t:0,cool:0,hull:100,stakes:0,stakeMask:0,hits:0,
+ done:false,dnf:false,planted:-1,prevMid:true,attempts:0,flags:{}};
+function buildRace6(){
+ if(!speeder6){speeder6=buildSpeeder();terraRoot.add(speeder6);}
+ speeder6.visible=true;
+ if(!race6Grp){
+  race6Grp=new THREE.Group();
+  OBS6.forEach(([ox,oz,r])=>{
+   const b=buildBoulder6(r);
+   b.position.set(ox,terrainH(ox)+r*.3,oz); /* corridor: terrainH3(x,z)===terrainH(x) */
+   race6Grp.add(b);});
+  stakes6=GATES6.map(([gx,gz])=>{
+   const s=buildStake6();
+   s.position.set(gx,terrainH(gx),gz);
+   race6Grp.add(s);return s;});
+  terraRoot.add(race6Grp);
+ }
+ race6Grp.visible=true;
+}
+function resetRace(){
+ R6.x=B6.X0;R6.z=0;R6.v=0;R6.vz=0;R6.t=0;R6.cool=0;
+ R6.hull=B6.HULL0;R6.stakes=0;R6.stakeMask=0;R6.hits=0;
+ R6.done=false;R6.dnf=false;R6.planted=-1;
+ R6.prevMid=true;R6.flags={};
+ speeder6.position.set(R6.x,terrainH(R6.x)+1.1,R6.z);
+ speeder6.rotation.set(0,0,0);
+ stakes6.forEach(s=>{
+  s.userData.lamp.material.color.setHex(0x5a4522);
+  s.userData.flag.visible=false;});
+ $('thrust').textContent='Hold · Boost / Tap · Plant';
+ $('fuelBar').classList.remove('low');
+ setAlarmLevels(0,0,0);
+}
+function enterGame6(){
+ /* self-contained from a forged history, like enterGame3 */
+ if(props.comms)props.comms.visible=false;
+ hideSub();cancelVoice();
+ document.body.classList.remove('cine','ch4');
+ document.body.classList.add('landing');
+ ['end3Card','end4Card','end5Card','end6Card','ch4','timeCtl','n5hud','hud'].forEach(id=>$(id).style.display='none');
+ $('missionClock').style.display='none';
+ $('skipBtn').style.display='none';
+ tvHide();
+ if(hasTHREE){
+  cabinRoot.visible=false;siteRoot.visible=false;orbitRoot.visible=false;
+  terraRoot.visible=true;
+  scene.background=new THREE.Color(0x000104);scene.fog=null;
+  buildRace6();
+  lander.visible=false;
+  if(rover3)rover3.visible=false;
+  if(drillRig)drillRig.visible=false;
+  /* full grazing daylight over the course: undo any long-night lighting */
+  terraSun.position.set(420,110,140);
+  terraSun.intensity=1.45;terraSun.color.setHex(0xffe8cc);
+  terraAmb.intensity=1.15;terraAmb.color.setHex(0x1c2530);
+  if(sunDisc){sunDisc.visible=true;sunDisc.position.copy(terraSun.position).setLength(2400);}
+ }
+ setGhudMode('speeder');
+ $('ghud').style.display='flex';$('limits').style.display='block';
+ $('padCtl').style.display='flex';
+ setObjective('Plant the survey line before the rival lands');
+ $('objWrap').style.display='flex';
+ R6.attempts++;
+ resetRace();
+ setAmb(0,1);padToMinor();
+ setMix('GAME2',2.5);
+ gameState.date='September 2032';
+ const slug=$('slug');
+ slug.textContent='Sol 421 · The Line on the Map · Chapter Six';
+ slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
+ setTimeout(()=>{if(gameState.scene==='GAME6')
+  callout('eng',"Speeder's hot. Hold the middle pad to boost, tap it inside a survey gate to drop a stake — and the rocks out there don't move for anybody.");},1200);
+}
+function milestone6(k,fn){if(!R6.flags[k]){R6.flags[k]=true;fn();}}
+function raceUpdate(dt){
+ /* middle button: tap plants inside a gate, hold boosts everywhere else */
+ const mid=G2.inThrust;
+ const inGate=gateAt6(R6)>=0;
+ const inp={l:G2.inL,r:G2.inR,boost:mid&&!inGate,plant:mid&&!R6.prevMid};
+ R6.prevMid=mid;
+ const s0=R6.stakes,h0=R6.hits;
+ raceStep(R6,inp,dt);
+ if(R6.stakes>s0){
+  const s=stakes6[R6.planted];
+  if(s){
+   s.userData.lamp.material.color.setHex(0x7fe08f);
+   s.userData.flag.visible=true;
+   for(let i=0;i<16;i++)
+    emitP(lDust,s.position.x,s.position.y+.5,s.position.z,
+     (Math.random()-.5)*5,1.5+Math.random()*2.5,(Math.random()-.5)*5,.7+Math.random()*.4);
+  }
+  sfxChime();
+  if(R6.stakes>=B6.STAKES)callout('sci',"That's all six! The whole line is ours — now FLY.");
+  else milestone6('s1',()=>callout('cdr',"First marker's in. Five to go — keep it moving."));
+ }
+ if(R6.hits>h0){
+  sfxThud();shakeAmp=.45;
+  if(R6.hull<30){sfxKlaxon();
+   milestone6('hull30',()=>callout('eng',"Hull's down to scrap margins! Miss the next one!"));}
+  else milestone6('hit1',()=>callout('eng',"That rock just billed us hull plating. Around them, not through them."));
+ }else shakeAmp=Math.max(R6.v*.004,shakeAmp-dt*1.6);
+ setRumbleDrive(.3+(R6.v/B6.VBOOST)*.5);
+ /* hover wash */
+ if(R6.v>4){
+  const gy=terrainH(R6.x);
+  const n=Math.floor(R6.v*.5*dt*10)+1;
+  for(let i=0;i<n;i++)
+   emitP(lDust,R6.x+1.8+(Math.random()-.5),gy+.3,R6.z+(Math.random()-.5)*1.6,
+    R6.v*.35+(Math.random()-.5),1+Math.random()*1.5,(Math.random()-.5)*2,.4+Math.random()*.3);
+ }
+ if(R6.x<0)milestone6('roll',()=>callout('flight',"Course is live, Eden. The rival burn window opens in seventy seconds.",true));
+ if(R6.x<-130)milestone6('half',()=>callout('flight',"Halfway line. Their lander is on final — don't look up.",true));
+ if(B6.TIME-R6.t<20)milestone6('t20',()=>{
+  $('fuelBar').classList.add('low');
+  callout('flight',"Twenty seconds on the claim window.",true);});
+ if(R6.hull<=0)return fail6('hull');
+ if(R6.dnf)return fail6('dnf');
+ if(R6.done)return finishRace();
+ updateRaceHud();
+}
+function updateRaceHud(){
+ const tl=Math.max(0,B6.TIME-R6.t);
+ $('hAlt').textContent=R6.v.toFixed(0)+' m/s';
+ const tE=$('hVs');tE.textContent=tl.toFixed(0)+' s';
+ tE.className='v'+(tl<12?' bad':tl<25?' warn':'');
+ const gE=$('hHs');gE.textContent=R6.stakes+' / '+B6.STAKES;
+ gE.className='v'+(gateAt6(R6)>=0?' warn':''); /* amber = inside a gate, plant now */
+ const hE=$('hTilt');hE.textContent=R6.hull.toFixed(0)+'%';
+ hE.className='v'+(R6.hull<30?' bad':R6.hull<60?' warn':'');
+ $('hFuel').textContent=tl.toFixed(0)+' s';
+ $('fuelBar').firstElementChild.style.width=(tl/B6.TIME*100)+'%';
+ /* nearest rock ahead drives the proximity voice */
+ let near=0;
+ for(const o of OBS6){
+  if(o[0]>R6.x+2||o[0]<R6.x-30)continue;
+  const d=Math.hypot(R6.x-o[0],R6.z-o[1]);
+  if(d<o[2]+7)near=Math.max(near,d<o[2]+3.5?1:.5);
+ }
+ setAlarmLevels(
+  R6.hull<30?1:R6.hull<60?.5:0,
+  tl<12?1:tl<25?.5:0,
+  near);
+}
+function fail6(kind){
+ gameState.scene='CRASH6';
+ setAlarmLevels(0,0,0);setRumbleDrive(0);
+ $('padCtl').style.display='none';
+ if(kind==='hull'){sfxExplosion();shakeAmp=.5;}
+ const line=kind==='hull'?
+  ['eng',"Hull's an accordion — that's the whole chassis. Recovery sled is towing you back to the start line."]:
+  ['flight',"Eden, the claim window closed with you on the course. Guidance rewind — run the line again."];
+ callout(line[0],line[1],line[0]==='flight');
+ setTimeout(()=>{if(gameState.scene==='CRASH6')go('GAME6');},4200);
+}
+function finishRace(){
+ gameState.scene='FIN6';setMix('TOUCH2',2);
+ setAlarmLevels(0,0,0);setRumbleDrive(0);shakeAmp=.1;
+ sfxThud();
+ completeObjective();
+ const gy=terrainH(R6.x);
+ for(let i=0;i<50;i++)
+  emitP(lDust,R6.x+(Math.random()-.5)*4,gy+.4,R6.z+(Math.random()-.5)*4,
+   (Math.random()-.5)*8,1+Math.random()*3,(Math.random()-.5)*8,.9+Math.random()*.5);
+ $('padCtl').style.display='none';$('ghud').style.display='none';
+ $('limits').style.display='none';$('objWrap').style.display='none';
+ document.body.classList.remove('landing');
+ document.body.classList.add('cine');
+ $('skipBtn').style.display='block';
+ const tl=Math.max(0,B6.TIME-R6.t);
+ const claim=claimFrom(tl,R6.stakes,R6.hits);
+ gameState.flags.claimPct=claim;
+ gameState.flags.ch6Grade=raceGrade(R6,claim);
+ gameState.log.push('Ran the claim line: '+R6.stakes+'/'+B6.STAKES+' stakes, '+
+  claim+'% of the survey grid, attempt '+R6.attempts+'.');
+ const rv=gameState.flags.rival;
+ const seq=[
+  [400,()=>callout('cdr',"Finish beacon. Cut the throttle — the line is planted.")],
+  [4200,()=>callout('flight',"Copy, Eden. The filing is timestamped — "+claim+" percent of the survey grid, sealed while "+(rv?rv+"'s crew":"the rival crew")+" was still on final.",true)],
+  [8600,()=>callout('eng',R6.hits?"Hull logged "+R6.hits+" argument"+(R6.hits>1?"s":"")+" with the local geology. I'll buff it out. Probably.":"Not a scratch on her. I'm framing this speeder.")],
+  [12400,()=>go('CH6_END')]
+ ];
+ R6.finTimers=seq.map(([ms,fn])=>setTimeout(()=>{if(gameState.scene==='FIN6')fn();},ms));
+}
+function skipFinish6(){
+ (R6.finTimers||[]).forEach(clearTimeout);
+ cancelVoice();
+ go('CH6_END');
+}
+function openReport6(){
+ hideSub();document.body.classList.remove('cine');
+ $('skipBtn').style.display='none';
+ setArp(.5,4);padToMajor();
+ const claim=gameState.flags.claimPct||0;
+ const grade=gameState.flags.ch6Grade||'C';
+ $('grade6').textContent=grade;
+ $('grade6').style.color=grade==='A'?'var(--go)':grade==='B'?'var(--accent)':
+  grade==='C'?'var(--dawn)':'var(--bad)';
+ const tl=Math.max(0,B6.TIME-R6.t);
+ const war=gameState.flags.ch6War;
+ const rows=[
+  'Territory claimed: '+claim+'% of the survey grid'+
+   (gameState.flags.coalition?' · filed under the coalition charter':''),
+  'Stakes planted: '+R6.stakes+' / '+B6.STAKES+' · rock strikes: '+R6.hits+' · attempts: '+R6.attempts,
+  'Course time: '+R6.t.toFixed(1)+' s · window margin: '+tl.toFixed(0)+' s',
+  war===undefined?'The survey office will argue over the remainder for years.':
+   war?'The line is drawn. '+(gameState.flags.rival||'The rival crew')+' lands outside it.':
+   'Room left for neighbors — the shared map splits the remainder.'
+ ];
+ const rr=$('end6Rows');rr.innerHTML='';
+ rows.forEach(t=>{const d=document.createElement('div');d.textContent=t;rr.appendChild(d);});
+ $('end6Card').style.display='flex';
+}
+$('again6Btn').addEventListener('click',()=>{
+ sfxClick();
+ $('end6Card').style.display='none';
+ padToMinor();
+ go('GAME6');
+});
+$('restartBtn7').addEventListener('click',()=>{
+ sfxClick();$('end6Card').style.display='none';resetGame();
 });
 
 /* ================= Crew Archive: chapter select ================= */

@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ./build.sh
-for t in test/parse-check.mjs test/sim-ch3-traverse.mjs test/sim-ch4-balance.mjs test/sim-ch5-night.mjs test/sim-ch6-decide.mjs test/sim-archive-fuzz.mjs; do
+for t in test/parse-check.mjs test/sim-ch3-traverse.mjs test/sim-ch4-balance.mjs test/sim-ch5-night.mjs test/sim-ch6-decide.mjs test/sim-ch6-race.mjs test/sim-archive-fuzz.mjs; do
   echo; echo "== $t"
   node "$t"
 done
