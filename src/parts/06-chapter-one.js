@@ -182,7 +182,7 @@ function go(name){
   ARRIVE2:'ARRIVE2',GAME2:'GAME2',TOUCH2:'TOUCH2',DEPLOY2:'DEPLOY2',REPORT2:'REPORT2',
   CH3_CALL:'DEPLOY2',GAME3:'GAME2',ICE3:'TOUCH2',REPORT3:'REPORT2',
   CH4:'PLANNING',CH4_END:'REPORT2',CH5:'COAST',CH5_END:'REPORT2',DOCTV:'LAUNCH_GO',
-  CH6_CALL:'DEPLOY2',CH6TV:'LAUNCH_GO',GAME6:'GAME2',CH6_END:'REPORT2'};
+  CH6_CALL:'DEPLOY2',CH6TV:'LAUNCH_GO',GAME6:'GAME2',CH6_END:'REPORT2',CH6_ARRIVE:'ARRIVE2'};
  if(AM.ctx&&mixMap[name])setMix(mixMap[name]);
  if(name==='SITE_SELECT')enterSiteSelect();
  if(name==='DESCENT')enterDescent();
@@ -207,6 +207,7 @@ function go(name){
  if(name==='CH6TV')enterCh6Tv();
  if(name==='GAME6')enterGame6();
  if(name==='CH6_END')openReport6();
+ if(name==='CH6_ARRIVE')enterCh6Arrive();
 }
 let pinGroup=null,pinSel=null;
 function enterSiteSelect(){
@@ -684,6 +685,7 @@ function resetGame(){
  if(baseGrp)baseGrp.visible=false;
  if(speeder6)speeder6.visible=false;
  if(race6Grp)race6Grp.visible=false;
+ if(rivalGrp)rivalGrp.visible=false;
  $('timeCtl').style.display='none';
  for(const k in crewFigs)if(crewFigs[k])crewFigs[k].g.visible=false;
  if(drillRig)drillRig.visible=false;

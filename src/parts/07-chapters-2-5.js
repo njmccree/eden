@@ -517,7 +517,7 @@ $('skipBtn').addEventListener('click',e=>{
  else if(sc==='LAUNCH'&&launch.phase==='liftoff'){
   launch.tlIdx=launch.timeline.length;cancelVoice();
   stageSeparation(true);tliCallback();}
- else if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'||sc==='CH6_CALL'){SCN.abort=true;cancelVoice();if(SCN.tapFn)SCN.tapFn();}
+ else if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'||sc==='CH6_CALL'||sc==='CH6_ARRIVE'){SCN.abort=true;cancelVoice();if(SCN.tapFn)SCN.tapFn();}
  else if(sc==='TOUCH2')skipTouchdown();
  else if(sc==='ICE3')skipExtraction();
  else if(sc==='FIN6')skipFinish6();
@@ -635,6 +635,14 @@ function frame(now){
    camBase.set(26,8+rocket.position.y*.92,30+rocket.position.y*.1);
    camLook.set(0,rocket.position.y+6,0);
   }
+ }
+ if(sc==='CH6_ARRIVE'){
+  /* rival landing epilogue: lander animation + camera drift live in c6Update;
+     the generic else below applies camBase/camLook like the launch cutscenes */
+  c6Update(dt);
+  stepPool(lExh,dt,0);
+  stepPool(lDust,dt,-1.3);
+  blinkBeacons(now);
  }
  if(sc==='COAST'||sc==='ARRIVE2'||sc==='CH3_CALL'||sc==='CH6_CALL'){
   const speaker=VOICE.active;
@@ -2814,6 +2822,191 @@ $('restartBtn7').addEventListener('click',()=>{
  sfxClick();$('end6Card').style.display='none';resetGame();
 });
 
+/* ================= Chapter 6 epilogue: the rival lands ================= */
+/* CH6_ARRIVE: after the territory race the rival country's crew arrives.
+   PEACE (flags.coalition): they land beside the player base and the two
+   programs form the first coalition. WAR (flags.ch6War): they settle the far
+   eastern ridge and the channel stays silent. Reads flags.rival / ch6War /
+   coalition / claimPct (all forged by archive row 7 on cold jumps). */
+let rivalGrp=null,rivalParts=null,C6A=null;
+function blinkBeacons(now){
+ beacons.forEach((b,i)=>{
+  const on=(Math.sin(now*.004+i*2.1)+1)/2>.45;
+  b.material.color.setHex(on?0x7fe08f:0x123318);});
+}
+function ensureRivalGrp(){
+ if(rivalParts){rivalGrp.visible=true;return;}
+ rivalGrp=new THREE.Group();rivalParts={};
+ const met=new THREE.MeshPhongMaterial({color:0xcfd3da,flatShading:true});
+ const hab=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.6,3.8,12),met);
+ hab.rotation.z=Math.PI/2;rivalGrp.add(hab);rivalParts.hab=hab;
+ const tank=new THREE.Mesh(new THREE.SphereGeometry(1.5,10,8),met);
+ rivalGrp.add(tank);rivalParts.tank=tank;
+ const mast=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,4.2,6),met);
+ rivalGrp.add(mast);rivalParts.mast=mast;
+ const beacon=new THREE.Mesh(new THREE.SphereGeometry(.42,8,6),
+  new THREE.MeshBasicMaterial({color:0xffffff}));
+ rivalGrp.add(beacon);rivalParts.beacon=beacon;
+ rivalParts.lander=lander.clone(); /* their ship is the same 2031 airframe */
+ rivalGrp.add(rivalParts.lander);
+ ['hab','tank','mast','beacon','lander'].forEach(id=>rivalParts[id].visible=false);
+ terraRoot.add(rivalGrp);
+}
+/* rebuild-safe: repeated calls just re-ground and re-reveal the cluster */
+function buildRivalBase(war){
+ ensureRivalGrp();
+ const bx=war?150:74,bz=war?-30:12;
+ const L=LEADERS[gameState.flags.rival]||LEADERS['China'];
+ rivalParts.beacon.material.color.setHex(parseInt(L.color.slice(1),16));
+ rivalParts.hab.position.set(bx-7,terrainH3(bx-7,bz+1)+1.9,bz+1);
+ rivalParts.tank.position.set(bx-11,terrainH3(bx-11,bz+4)+1.5,bz+4);
+ rivalParts.mast.position.set(bx+5,terrainH3(bx+5,bz-3)+2.1,bz-3);
+ rivalParts.beacon.position.set(bx+5,rivalParts.mast.position.y+2.4,bz-3);
+ ['hab','tank','mast','beacon'].forEach(id=>rivalParts[id].visible=true);
+ rivalGrp.visible=true;
+}
+function c6Update(dt){
+ const A=C6A;if(!A||!hasTHREE)return;
+ /* wall-clock delta: the frame dt is clamped at 50 ms, which would stretch the
+    8 s descent on slow/headless frames — the cutscene beats run on real time */
+ const nw=performance.now();
+ const dtR=Math.min(.25,(nw-(A.pt||nw))/1000);A.pt=nw;
+ camBase.lerp(A.camTo,Math.min(1,dtR*.12)); /* slow push toward the landing */
+ camLook.lerp(A.lookTo,Math.min(1,dtR*.28));
+ const l=rivalParts&&rivalParts.lander;if(!l)return;
+ if(A.phase==='descend'){
+  A.t+=dtR;
+  const k=Math.min(1,A.t/8),e=k*k*(3-2*k);
+  l.position.set(A.bx+(1-e)*10,A.gy+(1-e)*130,A.bz+(1-e)*30);
+  l.rotation.z=.14*(1-e);
+  const n=Math.floor(90*dtR)+1;
+  for(let i=0;i<n;i++)
+   emitP(lExh,l.position.x+(Math.random()-.5),l.position.y+1.4,l.position.z+(Math.random()-.5),
+    (Math.random()-.5)*2,-(9+Math.random()*5),(Math.random()-.5)*2,.35+Math.random()*.25);
+  if(l.position.y-A.gy<24){
+   const kk=1-(l.position.y-A.gy)/24;
+   const m=Math.floor(kk*70*dtR)+1;
+   for(let i=0;i<m;i++){
+    const a=Math.random()*Math.PI*2,sp=4+Math.random()*10*kk;
+    emitP(lDust,A.bx+(Math.random()-.5)*5,A.gy+.4,A.bz+(Math.random()-.5)*5,
+     Math.cos(a)*sp,1+Math.random()*2,Math.sin(a)*sp,.7+Math.random()*.5);}
+  }
+  if(k>=1){
+   A.phase='down';sfxThud();shakeAmp=.08;
+   for(let i=0;i<60;i++){
+    const a=Math.random()*Math.PI*2,sp=6+Math.random()*12;
+    emitP(lDust,A.bx,A.gy+.5,A.bz,Math.cos(a)*sp,1+Math.random()*2.5,Math.sin(a)*sp,1+Math.random()*.6);}
+  }
+ }else if(A.phase==='down'){
+  shakeAmp=Math.max(0,shakeAmp-dtR*.2);
+  A.reveal-=dtR;
+  if(A.reveal<=0){
+   A.phase='based';
+   buildRivalBase(A.war);
+   for(let i=0;i<30;i++)
+    emitP(lDust,A.bx-7+(Math.random()-.5)*10,A.gy+.5,A.bz+(Math.random()-.5)*8,
+     (Math.random()-.5)*6,1+Math.random()*2,(Math.random()-.5)*6,.8+Math.random()*.4);
+   sfxChime();
+  }
+ }
+}
+function ch6ArriveBeats(war){
+ const claim=Math.round(gameState.flags.claimPct!=null?gameState.flags.claimPct:60);
+ const rival=gameState.flags.rival||'the rival program';
+ if(war)return [
+  {dur:4600,cap:'(March 2033 \u2014 a point of light crosses the eastern rim, decelerating)'},
+  {who:'flight',t:"Eden, tracking. "+rival+"'s lander is on final \u2014 far side of the east ridge, well outside your surveyed line."},
+  {who:'eng',t:"They picked the one stretch of high ground we never staked. That isn't luck \u2014 that's someone reading our maps."},
+  {dur:5200,cap:'(the ship settles on the ridge \u2014 dust, then stillness \u2014 no hail on any channel)',
+   pre:()=>{if(C6A){C6A.camTo.set(126,C6A.gy+13,8);C6A.lookTo.set(C6A.bx-2,C6A.gy+4,C6A.bz);}}},
+  {who:'cdr',t:"Log it plainly. Two flags on one Moon, and a line neither of us crosses. It held at "+claim+" percent.",
+   pre:()=>gameState.log.push('Two flags on one Moon. The line held at '+claim+'%.')},
+  {who:'sci',t:"Their beacon just lit. Different color than ours. Same dark waiting for both of us."},
+  {dur:4800,cap:'(two beacons blink out of sync across the rim \u2014 the channel stays silent)'}
+ ];
+ return [
+  {dur:4600,cap:'(March 2033 \u2014 a lander crosses the rim on final approach, transponder wide open)'},
+  {who:'flight',t:"Eden, tracking. "+rival+"'s ship is on final \u2014 and their approach plan files straight through your pattern. They're landing next door, by invitation."},
+  {who:'cdr',t:"Copy. Pad beacons to approach. Somebody warm two more chairs."},
+  {dur:5000,cap:'(dust off the plain \u2014 a second flag arrives on its own thrust)',
+   pre:()=>{if(C6A){C6A.camTo.set(C6A.bx+26,C6A.gy+11,56);C6A.lookTo.set(C6A.bx-7,C6A.gy+2,C6A.bz);}}},
+  {who:'leader',lag:true,t:"Eden Base, our hatch faces yours and our water line is drawn to your survey. Two programs, one pattern of lights \u2014 let the record call it the first coalition."},
+  {who:'cdr',t:"The record will. Signed at "+claim+" percent of the surveyed line \u2014 and worth every meter. Welcome to the neighborhood.",
+   pre:()=>gameState.log.push('The first coalition was signed at '+claim+'% of the surveyed line.')},
+  {who:'sci',t:"Two greenhouses within walking distance. On the MOON. The basil is getting a pen pal."},
+  {dur:5200,cap:'(two bases, one floodlit path between them \u2014 the first coalition on the Moon)'}
+ ];
+}
+function enterCh6Arrive(){
+ const gs=gameState,F=gs.flags;
+ /* cold-jump defaults: archive row 7 forges these, a direct go() may not */
+ if(!F.rival)F.rival=RIVALS[gs.site&&gs.site.country]||'China';
+ if(F.ch6War==null)F.ch6War=F.coalition==null?false:!F.coalition;
+ if(F.coalition==null)F.coalition=!F.ch6War;
+ if(F.claimPct==null)F.claimPct=60;
+ const war=!!F.ch6War;
+ const L=LEADERS[F.rival]||LEADERS['China'];
+ Object.assign(NPCS.leader,{name:L.name,color:L.color,blipF:L.blipF,pitch:L.pitch,rate:L.rate});
+ hideSub();
+ $('end6Card').style.display='none';
+ ['hud','ghud','padCtl','objWrap','limits','ch4','timeCtl','n5hud','dialog'].forEach(id=>$(id).style.display='none');
+ $('missionClock').style.display='none';
+ document.body.classList.remove('landing','ch4');
+ document.body.classList.add('cine');
+ if(hasTHREE){
+  terraRoot.visible=true;cabinRoot.visible=false;siteRoot.visible=false;orbitRoot.visible=false;
+  scene.background=new THREE.Color(0x000104);scene.fog=null;
+  if(rover3)rover3.visible=false;
+  buildBase();baseGrp.visible=true;
+  docFigs.forEach(f=>f.g.visible=false);
+  /* mid-morning static sun, warm like the Ch.4 dressing, lifted for legibility */
+  terraSun.position.set(420,160,140);terraSun.intensity=1.45;terraSun.color.setHex(0xffe8cc);
+  terraAmb.intensity=1.15;terraAmb.color.setHex(0x1c2530);
+  if(sunDisc){sunDisc.visible=true;sunDisc.position.copy(terraSun.position).setLength(2400);}
+  ensureRivalGrp();
+  ['hab','tank','mast','beacon'].forEach(id=>rivalParts[id].visible=false);
+  const bx=war?150:74,bz=war?-30:12,gy=terrainH3(bx,bz);
+  const l=rivalParts.lander;
+  l.visible=true;l.position.set(bx+10,gy+130,bz+30);l.rotation.z=.14;
+  C6A={war,bx,bz,gy,t:0,phase:'descend',reveal:1.4,
+   camTo:new THREE.Vector3(),lookTo:new THREE.Vector3()};
+  /* cameras sit sun-side (+z/+x) so the ship and cluster read lit, not backlit */
+  if(war){
+   camBase.set(70,PAD_TOP+18,30);camLook.set(bx,gy+30,bz);
+   C6A.camTo.set(120,gy+16,14);C6A.lookTo.set(bx,gy+5,bz);
+  }else{
+   camBase.set(64,gy+18,58);camLook.set(bx,gy+30,bz);
+   C6A.camTo.set(90,gy+14,52);C6A.lookTo.set(bx-5,gy+2.5,bz-2);
+  }
+  shakeAmp=0;
+ }
+ gs.date='March 2033';
+ setAmb(.4,2);setArp(.3,3);setRumbleDrive(0);
+ const slug=$('slug');
+ slug.textContent=war?'March 2033 \u00b7 The Far Ridge \u00b7 Two Flags':
+  'March 2033 \u00b7 Shackleton Plain \u00b7 The First Coalition';
+ slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4800);
+ playCut(ch6ArriveBeats(war),()=>{
+  /* skipped mid-descent: snap the landing + base reveal in before the fade */
+  let hold=0;
+  if(hasTHREE&&C6A&&C6A.phase!=='based'){
+   const l=rivalParts.lander;
+   l.position.set(C6A.bx,C6A.gy,C6A.bz);l.rotation.z=0;
+   C6A.phase='based';
+   buildRivalBase(C6A.war);
+   hold=900;
+  }
+  setTimeout(()=>{
+   $('fade').classList.add('out');
+   toast('THE EXPEDITION CONTINUES',true);
+   setTimeout(()=>{C6A=null;resetGame();},2200);
+  },hold);
+ });
+}
+$('chap7Btn').addEventListener('click',()=>{
+ sfxClick();$('end6Card').style.display='none';go('CH6_ARRIVE');
+});
+
 /* ================= Crew Archive: chapter select ================= */
 /* @arch-start */
 const ARCH_CALL={
@@ -2841,6 +3034,7 @@ function rollHistory(n,rnd){
  }
  if(n>=5)R.callFlags=pk(ARCH_CALL[R.site.country]||[{}]);
  if(n>=6)R.nightGrade=pk(['A','B','B','C']);
+ if(n>=7){R.rival=RIVALS[R.site.country];R.ch6War=rnd()<.5;R.claimPct=55+Math.floor(rnd()*40);}
  return R;
 }
 /* @arch-end */
@@ -2850,7 +3044,8 @@ const ARCH_ROWS=[
  {n:3,go:'ARRIVE2',t:'The Landing',d:'Lunar orbit to the Shackleton rim, by hand'},
  {n:4,go:'CH3_CALL',t:'First Ice',d:'The call home, then the traverse into the dark'},
  {n:5,go:'CH5',t:'The Long Night',d:'Six sols of dark, one battery'},
- {n:6,go:'CH4',t:'The Import Ledger',d:'Year one \u2014 run the base, retire the lines'}
+ {n:6,go:'CH4',t:'The Import Ledger',d:'Year one \u2014 run the base, retire the lines'},
+ {n:7,go:'CH6_CALL',t:'The Line on the Map',d:'A rival launch, a choice, a race for territory'}
 ];
 function forgeHistory(n){
  const R=rollHistory(n);
@@ -2875,6 +3070,13 @@ function forgeHistory(n){
  if(n>=6){
   gs.flags.ch5Grade=R.nightGrade;gs.date='September 2031';
   gs.log.push('First full night survived: grade '+R.nightGrade+'.');
+ }
+ if(n>=7){
+  /* forges INTO CH6_CALL (the chapter start) — the war/claim flags are only
+     consumed if the player cold-jumps mid-flow past the decision */
+  gs.flags.rival=R.rival;gs.flags.ch6War=R.ch6War;gs.flags.coalition=!R.ch6War;
+  gs.flags.claimPct=R.claimPct;gs.date='March 2033';
+  gs.log.push('Year one closed. A rival program \u2014 '+R.rival+' \u2014 answered with a launch of its own.');
  }
  return R;
 }
