@@ -1017,7 +1017,10 @@ function ch3Beats(country){
  const open=[
   {shot:'twoshot',pre:()=>sfxRadio(),dur:3200,cap:'(uplink acquired \u2014 relay through three satellites and one ocean)'},
  ];
+ const rv3=RIVALS[country]||'China';
  const close=[
+  {shot:'screen',who:'leader',lag:true,t:"One more item, off the agenda. My briefers keep a standing folder on "+rv3+"'s program now \u2014 their heavy pad test-fired while you were unpacking. Nothing you need to act on tonight. Just don't assume the sky up there stays empty."},
+  {shot:'cdr',who:'cdr',t:"Understood. We'll leave the porch light on."},
   {shot:'twoshot',dur:2600,cap:'(link drop \u2014 the cabin hum sounds louder than it did)'}
  ];
  if(country==='USA'){
@@ -1881,6 +1884,15 @@ function ch4Update(dtReal){
   while(S4.solFrac>=1){S4.solFrac-=1;accrueSol(S4,S4.assign,S4.A);}
   if(Math.floor(S4.T*2)!==S4._halfsol){S4._halfsol=Math.floor(S4.T*2);
    stripCh4();refreshEnergyBars();}
+  /* rival program wire items — the Ch.6 launch shouldn't come from nowhere */
+  if(!S4.wire1&&S4.T>=52){S4.wire1=true;
+   const rv=RIVALS[gameState.site.country]||'China';
+   toast('EARTH WIRE — '+rv+' names a four-person lunar crew. No landing site filed.',true);
+   gameState.log.push('Wire: '+rv+' named a lunar crew.');}
+  if(!S4.wire2&&S4.T>=300){S4.wire2=true;
+   const rv=RIVALS[gameState.site.country]||'China';
+   toast('EARTH WIRE — '+rv+' stacks a heavy vehicle on its polar pad. Analysts count seats for four.',true);
+   gameState.log.push('Wire: '+rv+' stacked a heavy vehicle.');}
   if(S4.T>=S4.w*30)return resolveBoundary();
  }
  const spdV=2.1*Math.sqrt(Math.min(spd,4)||0);
@@ -2402,7 +2414,12 @@ function ch6NewsBeats(){
   {shot:'twoshot',dur:3400,cap:'(the crew half-watches \u2014 the way you watch home when home is the far bright thing in the window)'},
   {shot:'screen',dur:2400,pre:()=>sfxRadio(true),cap:'\u2014 BREAKING \u2014'},
   {shot:'screen',who:'anchor',t:"We are interrupting this broadcast. "+net+" is receiving live pictures from "+rSite.name+" \u2014 a crewed stack, on the pad, in the final minute of a count nobody announced. Our team is the only home camera on site. Going live now."},
-  {shot:'cdr',who:'cdr',t:"...That's "+rival+"'s heavy pad. Turn it up."}
+  {shot:'cdr',who:'cdr',t:"...That's "+rival+"'s heavy pad. Turn it up."},
+  /* pay off the day-one press answer, if the record has one */
+  ...(gameState.flags.rivalTone==='race'?
+    [{shot:'sci',who:'sci',t:"Day one, the press asked if this was a race and we said we intended to win it. I believe the starting gun just fired."}]:
+   gameState.flags.rivalTone==='calm'?
+    [{shot:'sci',who:'sci',t:"Day one we told the press we weren't racing anybody. Let the record show the Moon disagreed."}]:[])
  ];
 }
 function enterCh6Call(){
@@ -3043,6 +3060,7 @@ function rollHistory(n,rnd){
  const R={site:pk(SITES)};
  if(n>=2){
   R.background=pk(BACKGROUNDS).id;
+  R.rivalTone=rnd()<.5?'race':'calm'; /* the day-one press answer */
   const ids=MODULES.map(m=>m.id);
   const p1=pk(ids),p2=pk(ids.filter(i=>i!==p1));
   R.payloads=[p1,p2];
@@ -3075,6 +3093,7 @@ function forgeHistory(n){
  gs.site=R.site;
  if(n>=2){
   gs.background=R.background;
+  gs.flags.rivalTone=R.rivalTone;
   gs.payloads=R.payloads.slice();
   gs.flags.waivedAnomaly=R.waived;
   Object.assign(gs.stats,R.stats);

@@ -144,6 +144,20 @@ function arrivalScript(site){
      fx:()=>{setStat('reliability',1);bumpCrew('engineer',1);},
      next:[{s:'press',t:"An engineer running the show. The comment section will be... divided."}]}
    ]},
+  {s:'press',t:()=>{const rv=RIVALS[site.country]||'China';
+    return "Follow-up from the wire desk: "+rv+" poured foundations for a crew-rated heavy pad this spring — polar-capable, nobody's saying for what. Is Eden a race?";},
+   choices:[
+    {label:'"We’re not racing anyone. The Moon grades every program on the same curve."',
+     tags:'measured · on the record',
+     fx:()=>{gameState.flags.rivalTone='calm';
+      gameState.log.push('Told the press Eden is not a race.');},
+     next:[{s:'press',t:"“Same curve.” The desk will hate how quotable that is."}]},
+    {label:'"If it turns out to be a race, we intend to win it."',
+     tags:'headline · on the record',
+     fx:()=>{gameState.flags.rivalTone='race';
+      gameState.log.push('Told the press Eden intends to win the race.');},
+     next:[{s:'press',t:"Now that prints itself. Good luck, architect — you may need the head start."}]}
+   ]},
   {s:'flight',t:"Enough theater. Walk the pad, then we pick your background file and build a manifest. The Moon doesn't wait on press cycles."}
  ];
 }

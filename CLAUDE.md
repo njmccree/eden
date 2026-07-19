@@ -80,6 +80,10 @@ chapters. Scene transitions go through `go(name)`; audio follows via `mixMap`.
 - Ch.5 night: `C5` object (drains, leak/EVA/blackout numbers) in the `@c5-*` pure
   block, pacing `SOL5_SEC=14`, beats in `N5_BEATS`
 - Ch.6 race: `B6`/`OBS6`/`GATES6` in `@c6`; decision `@c6d`; `RIVALS` map in 02.
+  Foreshadow thread: Ch.1 press question sets `flags.rivalTone` ('race'|'calm',
+  also rolled by `rollHistory` n>=2), Ch.3 call `close` beats + Ch.4 colony
+  `EARTH WIRE` toasts (sols 52/300 in `ch4Update`) mention the rival, and
+  `ch6NewsBeats` pays the tone off with a flag-gated sci line.
   Epilogue: `buildRivalBase(war)` sites the rival cluster at PEACE (x 74, z 12,
   beside the base) or WAR (x 150, z −30, up the eastern ridge); descent pacing
   `A.t/8` in `c6Update` (07)
