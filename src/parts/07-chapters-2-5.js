@@ -2329,7 +2329,9 @@ function enterCh5(){
  setArp(.25,4);
  const slug=$('slug');
  slug.textContent='Sol 14 · The Long Night · Chapter Four';
- slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
+ slug.style.top='176px'; /* below the SOL clock + gauges — default spot collides */
+ slug.classList.add('show');
+ setTimeout(()=>{slug.classList.remove('show');slug.style.top='';},4200);
  showDialog([
   {s:'flight',t:"Eden, the terminator crossed your rim an hour ago. Next sunrise is six sols out. Everything you are tonight is stored in one battery bank — spend it like air."},
   {s:'eng',t:"Baseline load is ten percent a sol before anyone feels warm. The night doesn't negotiate; it just subtracts."}

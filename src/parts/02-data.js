@@ -6,7 +6,7 @@
    One audio system, one gameState, all the way down.
    ============================================================ */
 'use strict';
-const EDEN_BUILD='0.17.1';
+const EDEN_BUILD='0.17.2';
 
 /* @pure-start */
 const SITES=[

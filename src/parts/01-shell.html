@@ -24,7 +24,8 @@
   #fade{position:fixed;inset:0;background:#05070d;opacity:0;pointer-events:none;z-index:39;transition:opacity 1.2s}
   #fade.out{opacity:1}
 
-  .bar{position:fixed;left:0;right:0;height:7vh;background:#000;z-index:15;transition:transform 1s ease}
+  /* cine letterbox bars only — do NOT match generic .bar (n5hud gauges use it) */
+  #barT,#barB{position:fixed;left:0;right:0;height:7vh;background:#000;z-index:15;transition:transform 1s ease}
   #barT{top:0;transform:translateY(-100%)}
   #barB{bottom:0;transform:translateY(100%)}
   body.cine #barT{transform:none}
@@ -214,7 +215,7 @@
   #endCard .recap{margin:14px 0 4px;display:flex;flex-direction:column;gap:6px;max-width:34em}
   #endCard .recap div{font-size:12.5px;color:var(--dim);letter-spacing:.05em;line-height:1.5}
   #endCard .recap div::before{content:'▸ ';color:var(--accent)}
-  #endCard .hook{margin-top:10px;color:var(--dawn);font-size:12px;letter-spacing:.22em;text-transform:uppercase}
+  .screen .hook{margin-top:10px;color:var(--dawn);font-size:12px;letter-spacing:.22em;text-transform:uppercase}
 
   #ghud{position:fixed;top:10px;left:12px;right:12px;z-index:20;display:none;
     justify-content:space-between;align-items:flex-start;font-size:11px;letter-spacing:.12em;
@@ -342,7 +343,7 @@
   #archive .hint{font-size:10px;color:#525d6e;letter-spacing:.1em;max-width:min(520px,88vw);
     text-align:center;line-height:1.6;text-transform:uppercase}
   #grade4{font-weight:200;font-size:clamp(40px,10vw,72px);color:var(--accent);letter-spacing:.1em}
-  #grade3,#grade6{font-weight:200;font-size:clamp(40px,10vw,72px);color:var(--accent);letter-spacing:.1em}
+  #grade3,#grade5,#grade6{font-weight:200;font-size:clamp(40px,10vw,72px);color:var(--accent);letter-spacing:.1em}
   #grade{font-weight:200;font-size:clamp(48px,12vw,96px);color:var(--accent);letter-spacing:.1em}
   .repRows{display:flex;flex-direction:column;gap:6px;max-width:32em}
   .repRows div{font-size:12px;color:var(--dim);letter-spacing:.05em;line-height:1.5}
@@ -380,7 +381,7 @@
     border-radius:4px;padding:9px 14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:88vw;text-align:center}
   #toast.show{opacity:1}
 
-  @media (prefers-reduced-motion: reduce){#flash,#fade,#menu,.bar{transition:none}}
+  @media (prefers-reduced-motion: reduce){#flash,#fade,#menu,#barT,#barB{transition:none}}
 </style>
 </head>
 <body>
