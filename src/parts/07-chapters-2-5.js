@@ -38,18 +38,27 @@ let ccPos=null,ccLook=null,ccDrift=null,shotT=0,curShot=null;
 let crewLookDefault=null; /* where idle crew look, per scene */
 const CSHOTS={
  wide:   {p:[0,.2,-2.9], l:[0,-.05,2],      d:[0,0,.04]},
- cdr:    {p:[.4,.45,1.35],l:[-1.05,.62,.55], d:[-.012,0,-.01]},
- eng:    {p:[-.45,.4,1.3],l:[1.05,.56,.35],  d:[.012,0,-.01]},
- sci:    {p:[.55,.75,.6], l:[-.15,1.28,-.85],d:[-.014,-.006,0]},
+ cdr:    {p:[.4,.45,1.35],l:[-1.05,.44,.55], d:[-.012,0,-.01]},
+ eng:    {p:[-.45,.4,1.3],l:[1.05,.38,.35],  d:[.012,0,-.01]},
+ sci:    {p:[.55,.75,.6], l:[-.15,1.1,-.85],d:[-.014,-.006,0]},
+ /* *TV variants: same subjects filmed from the screen side — used automatically
+    when the scene has the crew facing the comms wall (they'd otherwise be
+    backs of heads: the speaker looks at the screen while delivering lines) */
+ cdrTV:  {p:[-.4,.78,-1.2],l:[-1.05,.5,.55], d:[.012,0,.01]},
+ engTV:  {p:[.4,.72,-1.3], l:[1.05,.44,.35], d:[-.012,0,.01]},
+ sciTV:  {p:[.4,1.1,-1.95],l:[-.15,1.08,-.85],d:[-.01,0,.008]},
  group:  {p:[0,.9,1.9],  l:[0,-.1,-.2],      d:[0,-.008,-.02]},
  windowE:{p:[-.12,.02,1.05],l:[1.6,-.4,26],  d:[.008,.003,.05]},
  windowM:{p:[-.12,.02,1.05],l:[1.2,-1.5,20], d:[.008,.003,.05]},
  packet: {p:[.3,.5,1.5], l:[0,.4,.2],        d:[0,0,-.015],follow:'packet'},
  pull:   {p:[0,.15,-3.1],l:[0,0,2],          d:[0,.02,-.05]},
- screen: {p:[0,.4,-1.35], l:[0,.45,-3.4],     d:[0,0,-.02]},
+ /* framed so the whole flag + anchor fit the portrait crop and the bright
+    hull above the monitor stays out of frame (look-y low on purpose) */
+ screen: {p:[.45,.12,-.42], l:[-.06,.2,-3.42], d:[0,0,-.02]},
  twoshot:{p:[0,.95,1.1],  l:[0,.35,-3.4],     d:[0,-.006,-.03]}
 };
 function applyShot(name){
+ if(crewLookDefault&&crewLookDefault.z<-3&&CSHOTS[name+'TV'])name+='TV';
  curShot=CSHOTS[name]||CSHOTS.wide;
  ccPos.set(...curShot.p);ccLook.set(...curShot.l);ccDrift.set(...curShot.d);
  shotT=0;
@@ -935,6 +944,13 @@ function buildComms(flag){
   const frame=new THREE.Mesh(new THREE.BoxGeometry(1.82,1.18,.06),
    new THREE.MeshPhongMaterial({color:0x2b3038,flatShading:true}));
   frame.position.set(0,.45,-3.46);cabinRoot.add(frame);
+  /* dark media-wall alcove behind the set — keeps the white hull out of the
+     'screen' closeups (the bare wall blows out above and below the panel) */
+  const alcove=new THREE.Mesh(new THREE.PlaneGeometry(4.6,3.4),
+   new THREE.MeshPhongMaterial({color:0x141922,flatShading:true}));
+  alcove.position.set(0,.45,-3.47); /* fore wall sits at -3.5 — keep clear of it or they z-fight */
+  cabinRoot.add(alcove);
+  frame.userData.alcove=alcove;
   const dot=new THREE.Mesh(new THREE.SphereGeometry(.02,6,6),
    new THREE.MeshBasicMaterial({color:0xff4444}));
   dot.position.set(.82,.98,-3.4);cabinRoot.add(dot);
@@ -1133,6 +1149,7 @@ function enterCh3Call(){
  ['ghud','padCtl','objWrap'].forEach(id=>$(id).style.display='none');
  if(hasTHREE){
   terraRoot.visible=false;cabinRoot.visible=true;
+  orbitRoot.visible=false;siteRoot.visible=false; /* archive cold-jumps leave the title orbit lit — its atmosphere shell washes the closeups */
   scene.background=new THREE.Color(0x000104);
   moonMesh.visible=false;
   cabinEarth.visible=true;cabinClouds.visible=true;
@@ -2669,7 +2686,9 @@ function enterGame6(){
  gameState.date='September 2032';
  const slug=$('slug');
  slug.textContent='Sol 421 · The Line on the Map · Chapter Six';
- slug.classList.add('show');setTimeout(()=>slug.classList.remove('show'),4200);
+ slug.style.top='176px'; /* below the race HUD tiles — default spot collides */
+ slug.classList.add('show');
+ setTimeout(()=>{slug.classList.remove('show');slug.style.top='';},4200);
  setTimeout(()=>{if(gameState.scene==='GAME6')
   callout('eng',"Speeder's hot. Hold the middle pad to boost, tap it inside a survey gate to drop a stake — and the rocks out there don't move for anybody.");},1200);
 }

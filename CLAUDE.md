@@ -101,6 +101,11 @@ chapters. Scene transitions go through `go(name)`; audio follows via `mixMap`.
   in later-inserted ones — both valid at runtime; when string-matching, try both.
 - Constant lists are comma-packed (`,RIG:210,`) — anchor edits with the comma, not
   a leading space.
+- Cabin cutscene cameras: `CSHOTS` in 07. In call scenes (`crewLookDefault.z<-3`)
+  `applyShot` auto-swaps `cdr/eng/sci` → `*TV` variants (speakers face the comms
+  screen while talking — a +z camera films the back of their head). The comms
+  wall has a dark alcove plane at z −3.47; the fore wall is at −3.5 (don't
+  collide them, they z-fight).
 - Each JS part is individually brace/paren balanced (01 + tail are the only
   intentionally partial files). A quick per-part balance scan catches truncated edits.
 
